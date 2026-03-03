@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Jobs ──────────────────────────────────────────────────────────────────
+
+model Job {
+  id              String    @id @default(uuid())
+  type            String
+  payload         Json
+  status          JobStatus @default(PENDING)
+  priority        Priority  @default(NORMAL)
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(3)
+  backoff         Backoff   @default(EXPONENTIAL)
+  delayMs         Int       @default(0)
+  idempotencyKey  String?   @unique
+  result          Json?
+  error           String?
+  workflowId      String?
+  stepId          String?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  workflow        Workflow?     @relation(fields: [workflowId], references: [id])
+  step            WorkflowStep? @relation(fields: [stepId], references: [id])
+  deadLetterEntry DeadLetterQueue?
+
+  @@index([status])
+  @@index([workflowId])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  RETRYING
+  DEAD
+
+  @@map("job_status")
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+
+  @@map("priority")
+}
+
+enum Backoff {
+  FIXED
+  LINEAR
+  EXPONENTIAL
+
+  @@map("backoff")
+}
+
+// ─── Workflows ─────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String          @id @default(uuid())
+  name        String
+  status      WorkflowStatus  @default(PENDING)
+  definition  Json
+  createdAt   DateTime        @default(now())
+  completedAt DateTime?
+
+  steps       WorkflowStep[]
+  jobs        Job[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("workflows")
+}
+
+enum WorkflowStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("workflow_status")
+}
+
+// ─── Workflow Steps ─────────────────────────────────────────────────────────
+
+model WorkflowStep {
+  id            String      @id @default(uuid())
+  workflowId    String
+  name          String
+  jobType       String
+  status        StepStatus  @default(PENDING)
+  dependsOn     String[]    @default([])
+  parallelGroup String?
+  position      Int
+  result        Json?
+  error         String?
+  executedAt    DateTime?
+
+  workflow      Workflow    @relation(fields: [workflowId], references: [id])
+  jobs          Job[]
+
+  @@index([workflowId])
+  @@index([status])
+  @@map("workflow_steps")
+}
+
+enum StepStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+
+  @@map("step_status")
+}
+
+// ─── Schedules ──────────────────────────────────────────────────────────────
+
+model Schedule {
+  id         String       @id @default(uuid())
+  name       String
+  type       ScheduleType
+  cronExpr   String?
+  runAt      DateTime?
+  nextRunAt  DateTime
+  jobType    String
+  payload    Json
+  active     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  lastRunAt  DateTime?
+
+  @@index([active, nextRunAt])
+  @@map("schedules")
+}
+
+enum ScheduleType {
+  CRON
+  ONE_SHOT
+
+  @@map("schedule_type")
+}
+
+// ─── Dead Letter Queue ──────────────────────────────────────────────────────
+
+model DeadLetterQueue {
+  id           String    @id @default(uuid())
+  jobId        String    @unique
+  jobType      String
+  payload      Json
+  errorHistory Json[]    @default([])
+  movedAt      DateTime  @default(now())
+  replayedAt   DateTime?
+
+  job          Job       @relation(fields: [jobId], references: [id])
+
+  @@index([movedAt])
+  @@map("dead_letter_queue")
+}
+
+// ─── Audit Log ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String     @id @default(uuid())
+  entityType  EntityType
+  entityId    String
+  fromStatus  String?
+  toStatus    String
+  metadata    Json?
+  occurredAt  DateTime   @default(now())
+
+  @@index([entityId])
+  @@index([occurredAt])
+  @@map("audit_log")
+}
+
+enum EntityType {
+  JOB
+  WORKFLOW
+  SCHEDULE
+
+  @@map("entity_type")
+}
+
+// ─── Workers ────────────────────────────────────────────────────────────────
+
+model Worker {
+  id            String       @id
+  jobTypes      String[]     @default([])
+  status        WorkerStatus @default(ACTIVE)
+  lastHeartbeat DateTime
+  registeredAt  DateTime     @default(now())
+
+  @@index([status])
+  @@map("workers")
+}
+
+enum WorkerStatus {
+  ACTIVE
+  DEAD
+
+  @@map("worker_status")
+}
+
+// ─── API Keys ────────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  keyHash    String    @unique
+  label      String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@map("api_keys")
+}
