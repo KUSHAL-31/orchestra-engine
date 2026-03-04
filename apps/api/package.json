@@ -1,0 +1,28 @@
+{
+  "name": "@forge-engine/api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@forge-engine/types": "*",
+    "@forge-engine/kafka": "*",
+    "@forge-engine/redis": "*",
+    "@forge-engine/prisma": "*",
+    "fastify": "^4.27.0",
+    "@fastify/cors": "^9.0.1",
+    "dotenv": "^16.4.0",
+    "pino": "^8.19.0",
+    "pino-pretty": "^11.0.0",
+    "uuid": "^9.0.0",
+    "cron-parser": "^4.9.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.0",
+    "ts-node-dev": "^2.0.0"
+  }
+}
