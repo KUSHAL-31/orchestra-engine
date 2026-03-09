@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-scheduler
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+      app: forge-scheduler
+  template:
+    metadata:
+      labels:
+        app: forge-scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: "{{ .Values.scheduler.image.repository }}:{{ .Values.scheduler.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets

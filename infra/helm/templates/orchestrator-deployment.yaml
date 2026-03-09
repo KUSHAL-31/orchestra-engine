@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-orchestrator
+spec:
+  replicas: {{ .Values.orchestrator.replicaCount }}
+  selector:
+    matchLabels:
+      app: forge-orchestrator
+  template:
+    metadata:
+      labels:
+        app: forge-orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: "{{ .Values.orchestrator.image.repository }}:{{ .Values.orchestrator.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
