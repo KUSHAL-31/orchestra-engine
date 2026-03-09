@@ -1,6 +1,8 @@
 version: '3.9'
 
 services:
+  # ── Infrastructure ───────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:16-alpine
     container_name: forge-postgres
@@ -38,8 +40,6 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - '2181:2181'
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
@@ -48,7 +48,6 @@ services:
       - zookeeper
     ports:
       - '9092:9092'
-      - '29092:29092'
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -57,23 +56,113 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_LOG_RETENTION_HOURS: 168
     healthcheck:
       test: ['CMD', 'kafka-broker-api-versions', '--bootstrap-server', 'localhost:9092']
       interval: 10s
       timeout: 10s
       retries: 5
 
+  # ── Application Services ─────────────────────────────────────────────────────
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.api
+    command: sh -c "cd packages/prisma && npx prisma migrate deploy && npx prisma db seed"
+    environment:
+      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.api
+    container_name: forge-api
+    ports:
+      - '3000:3000'
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      KAFKA_BROKERS: kafka:29092
+      REDIS_HOST: redis
+      API_PORT: '3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.orchestrator
+    container_name: forge-orchestrator
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      KAFKA_BROKERS: kafka:29092
+      REDIS_HOST: redis
+    depends_on:
+      - api
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.worker
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      KAFKA_BROKERS: kafka:29092
+      REDIS_HOST: redis
+    depends_on:
+      - api
+    deploy:
+      replicas: 2
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.scheduler
+    container_name: forge-scheduler
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      KAFKA_BROKERS: kafka:29092
+      REDIS_HOST: redis
+      API_BASE_URL: http://api:3000
+    depends_on:
+      - api
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.dashboard
+    container_name: forge-dashboard
+    ports:
+      - '5173:80'
+    depends_on:
+      - api
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: forge-kafka-ui
-    depends_on:
-      - kafka
     ports:
       - '8080:8080'
     environment:
       KAFKA_CLUSTERS_0_NAME: forge
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      - kafka
 
 volumes:
   postgres_data:
