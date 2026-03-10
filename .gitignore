@@ -7,3 +7,8 @@ prisma/generated/
 *.log
 .DS_Store
 coverage/
+
+# Claude Code project files
+.claude/
+CLAUDE.md
+docs/[0-9][0-9]_*.md
