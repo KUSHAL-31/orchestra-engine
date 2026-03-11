@@ -10,6 +10,5 @@ coverage/
 
 # Claude Code project files
 .claude/
-docs/
 CLAUDE.md
-docs/[0-9][0-9]_*.md
+docs/
