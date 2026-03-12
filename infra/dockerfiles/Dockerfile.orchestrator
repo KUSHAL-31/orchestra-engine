@@ -9,6 +9,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/kafka/package.json ./packages/kafka/
 COPY packages/redis/package.json ./packages/redis/
 COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/prisma/prisma ./packages/prisma/prisma
 RUN npm ci
 
 FROM deps AS builder
