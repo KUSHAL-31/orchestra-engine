@@ -44,7 +44,7 @@ async function handleStandaloneJobFailed(event: JobFailedEvent, job: { id: strin
     await prisma.job.update({ where: { id: job.id }, data: { status: 'RETRYING', attempts: event.attempt } });
     await produceMessage<JobRetryEvent>(Topics.JOB_RETRY, {
       jobId: job.id, type: job.type, payload: job.payload as Record<string, unknown>,
-      attempt: event.attempt + 1, retryAfterMs,
+      attempt: event.attempt + 1, retryAfterMs, maxAttempts: event.maxAttempts,
     }, job.id);
   } else {
     await prisma.job.update({ where: { id: job.id }, data: { status: 'DEAD', error: event.error, attempts: event.attempt } });
@@ -62,7 +62,7 @@ async function handleWorkflowJobFailed(event: JobFailedEvent, job: { id: string;
     await prisma.job.update({ where: { id: job.id }, data: { status: 'RETRYING', attempts: event.attempt } });
     await produceMessage<JobRetryEvent>(Topics.JOB_RETRY, {
       jobId: job.id, type: job.type, payload: job.payload as Record<string, unknown>,
-      attempt: event.attempt + 1, retryAfterMs,
+      attempt: event.attempt + 1, retryAfterMs, maxAttempts: event.maxAttempts,
       workflowId: event.workflowId, stepId: event.stepId,
     }, job.id);
   } else {
