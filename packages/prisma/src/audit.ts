@@ -1,8 +1,7 @@
 import { prisma } from './index';
-import { EntityType } from '@prisma/client';
 
 export async function writeAuditLog(params: {
-  entityType: EntityType;
+  entityType: string;
   entityId: string;
   fromStatus?: string;
   toStatus: string;
