@@ -19,6 +19,7 @@ export interface JobRetryEvent {
   type: string;
   payload: Record<string, unknown>;
   attempt: number;
+  maxAttempts: number;
   retryAfterMs: number;
   workflowId?: string;
   stepId?: string;
