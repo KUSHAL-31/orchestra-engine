@@ -1,4 +1,5 @@
 import { prisma } from './index';
+import { EntityType, Prisma } from '@prisma/client';
 
 export async function writeAuditLog(params: {
   entityType: string;
@@ -9,11 +10,11 @@ export async function writeAuditLog(params: {
 }) {
   await prisma.auditLog.create({
     data: {
-      entityType: params.entityType,
+      entityType: params.entityType as EntityType,
       entityId: params.entityId,
       fromStatus: params.fromStatus,
       toStatus: params.toStatus,
-      metadata: params.metadata,
+      metadata: params.metadata as Prisma.InputJsonValue | undefined,
     },
   });
 }
