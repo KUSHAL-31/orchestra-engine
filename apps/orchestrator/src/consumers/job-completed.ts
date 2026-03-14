@@ -89,7 +89,7 @@ export async function startJobCompletedConsumer() {
 
               const newJobId = uuidv4();
               await prisma.job.create({
-                data: { id: newJobId, type: nextStep.jobType, payload, status: 'PENDING', workflowId: event.workflowId, stepId: nextStep.id },
+                data: { id: newJobId, type: nextStep.jobType, payload: payload as any, status: 'PENDING', workflowId: event.workflowId, stepId: nextStep.id },
               });
               await prisma.workflowStep.update({ where: { id: nextStep.id }, data: { status: 'RUNNING' } });
 

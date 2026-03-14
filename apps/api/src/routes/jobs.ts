@@ -29,7 +29,7 @@ export async function jobRoutes(server: FastifyInstance) {
       data: {
         id: jobId,
         type,
-        payload,
+        payload: payload as any,
         status: 'PENDING',
         priority: priority.toUpperCase() as 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL',
         maxAttempts: retries,

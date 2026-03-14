@@ -38,7 +38,7 @@ export async function startWorkflowCreatedConsumer() {
           data: {
             id: jobId,
             type: step.jobType,
-            payload,
+            payload: payload as any,
             status: 'PENDING',
             workflowId,
             stepId: step.id,
