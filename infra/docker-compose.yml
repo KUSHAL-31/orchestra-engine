@@ -68,7 +68,7 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.api
-    command: sh -c "cd packages/prisma && npx prisma db push --accept-data-loss && npx ts-node --transpile-only prisma/seed.ts"
+    command: sh -c "cd packages/prisma && npx prisma db push --accept-data-loss && npx ts-node --skip-project prisma/seed.ts"
     environment:
       DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
     depends_on:
