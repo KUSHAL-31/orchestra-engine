@@ -21,9 +21,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache openssl
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/packages/types/package.json ./packages/types/
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/kafka/package.json ./packages/kafka/
 COPY --from=builder /app/packages/kafka/dist ./packages/kafka/dist
+COPY --from=builder /app/packages/redis/package.json ./packages/redis/
 COPY --from=builder /app/packages/redis/dist ./packages/redis/dist
+COPY --from=builder /app/packages/prisma/package.json ./packages/prisma/
 COPY --from=builder /app/packages/prisma/dist ./packages/prisma/dist
 COPY --from=builder /app/packages/prisma/prisma ./packages/prisma/prisma
 COPY --from=builder /app/node_modules ./node_modules
