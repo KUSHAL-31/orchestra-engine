@@ -3,7 +3,7 @@ import { prisma } from '@forge-engine/prisma';
 import { redis, withLock, RedisKeys, RedisTTL } from '@forge-engine/redis';
 import type { JobCompletedEvent, JobSubmittedEvent, WorkflowCompletedEvent, WorkflowStepDoneEvent } from '@forge-engine/types';
 import { resolveReadySteps } from '../lib/step-resolver';
-import { writeAuditLog } from '@forge-engine/prisma/src/audit';
+import { writeAuditLog } from '@forge-engine/prisma';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function startJobCompletedConsumer() {

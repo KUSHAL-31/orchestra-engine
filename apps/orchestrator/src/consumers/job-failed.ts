@@ -2,7 +2,7 @@ import { kafka, Topics, produceMessage } from '@forge-engine/kafka';
 import { prisma } from '@forge-engine/prisma';
 import { withLock, RedisKeys, RedisTTL } from '@forge-engine/redis';
 import { computeBackoffMs } from '../lib/backoff';
-import { writeAuditLog } from '@forge-engine/prisma/src/audit';
+import { writeAuditLog } from '@forge-engine/prisma';
 import type { JobFailedEvent, JobRetryEvent, JobDlqEvent, WorkflowStepDoneEvent, JobSubmittedEvent } from '@forge-engine/types';
 import { v4 as uuidv4 } from 'uuid';
 
