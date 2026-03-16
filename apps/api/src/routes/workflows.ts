@@ -6,6 +6,23 @@ import type { SubmitWorkflowRequest, WorkflowCreatedEvent } from '@forge-engine/
 
 export async function workflowRoutes(server: FastifyInstance) {
 
+  // GET /workflows — List all workflows (most recent first)
+  server.get('/workflows', async (_req, reply) => {
+    const workflows = await prisma.workflow.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return reply.send(
+      workflows.map((w) => ({
+        id: w.id,
+        name: w.name,
+        status: w.status.toLowerCase(),
+        createdAt: w.createdAt.toISOString(),
+        completedAt: w.completedAt?.toISOString() ?? null,
+      }))
+    );
+  });
+
   // POST /workflows — Submit a workflow
   server.post<{ Body: SubmitWorkflowRequest }>('/workflows', async (request, reply) => {
     const { name, steps, onFailure } = request.body;
@@ -15,13 +32,17 @@ export async function workflowRoutes(server: FastifyInstance) {
     }
 
     const workflowId = uuidv4();
+
+    // Pre-generate IDs so dependsOn names can be resolved to IDs
+    const nameToId = new Map<string, string>();
+    steps.forEach((step) => nameToId.set(step.name, uuidv4()));
+
     const stepRecords = steps.map((step, index) => ({
-      id: uuidv4(),
-      workflowId,
+      id: nameToId.get(step.name)!,
       name: step.name,
       jobType: step.type,
       status: 'PENDING' as const,
-      dependsOn: step.dependsOn ?? [],
+      dependsOn: (step.dependsOn ?? []).map((depName) => nameToId.get(depName) ?? depName),
       parallelGroup: step.parallelGroup ?? null,
       position: index,
     }));

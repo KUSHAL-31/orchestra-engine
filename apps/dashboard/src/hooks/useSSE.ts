@@ -3,7 +3,7 @@ import { useJobStore } from '../store/jobs';
 import { useWorkflowStore } from '../store/workflows';
 
 const SSE_URL = '/api/events';
-const API_KEY = (import.meta as any).env?.VITE_API_KEY ?? 'forge-dev-api-key-12345';
+const API_KEY = import.meta.env.VITE_API_KEY ?? 'forge-dev-api-key-12345';
 
 export function useSSE() {
   const updateJob = useJobStore((s) => s.updateJob);

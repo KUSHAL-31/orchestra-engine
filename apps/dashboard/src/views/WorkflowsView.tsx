@@ -1,23 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/client';
-import { useWorkflowStore } from '../store/workflows';
+import { useWorkflows } from '../hooks/useWorkflows';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function WorkflowsView() {
-  const { workflows, setWorkflows } = useWorkflowStore();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getWorkflows().then((data) => {
-      setWorkflows(data);
-      setLoading(false);
-    });
-  }, []);
-
-  const wfList = Array.from(workflows.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const { workflows, loading } = useWorkflows();
 
   if (loading) return <div className="loader">Loading workflows...</div>;
 
@@ -35,7 +22,7 @@ export function WorkflowsView() {
           </tr>
         </thead>
         <tbody>
-          {wfList.map((wf) => (
+          {workflows.map((wf) => (
             <tr key={wf.id}>
               <td>
                 <Link to={`/workflows/${wf.id}`} className="id-link">
