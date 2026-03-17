@@ -1,24 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/client';
-import { useJobStore } from '../store/jobs';
+import { useJobs } from '../hooks/useJobs';
 import { StatusBadge } from '../components/StatusBadge';
 import { ProgressBar } from '../components/ProgressBar';
 
 export function JobsView() {
-  const { jobs, setJobs } = useJobStore();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.getJobs().then((data) => {
-      setJobs(data);
-      setLoading(false);
-    });
-  }, []);
-
-  const jobList = Array.from(jobs.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const { jobs, loading } = useJobs();
 
   if (loading) return <div className="loader">Loading jobs...</div>;
 
@@ -37,7 +24,7 @@ export function JobsView() {
           </tr>
         </thead>
         <tbody>
-          {jobList.map((job) => (
+          {jobs.map((job) => (
             <tr key={job.id}>
               <td>
                 <Link to={`/jobs/${job.id}`} className="id-link">

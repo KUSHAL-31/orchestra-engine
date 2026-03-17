@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function startWorkflowCreatedConsumer() {
   const consumer = kafka.consumer({
-    groupId: process.env.KAFKA_GROUP_ID_ORCHESTRATOR ?? 'orchestrator',
+    groupId: `${process.env.KAFKA_GROUP_ID_ORCHESTRATOR ?? 'orchestrator'}-workflow-created`,
   });
   await consumer.connect();
   await consumer.subscribe({ topics: [Topics.WORKFLOW_CREATED], fromBeginning: false });

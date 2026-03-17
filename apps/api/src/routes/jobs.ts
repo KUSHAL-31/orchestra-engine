@@ -7,6 +7,29 @@ import type { SubmitJobRequest, JobSubmittedEvent } from '@forge-engine/types';
 
 export async function jobRoutes(server: FastifyInstance) {
 
+  // GET /jobs — List all jobs (most recent first)
+  server.get('/jobs', async (_req, reply) => {
+    const jobs = await prisma.job.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return reply.send(
+      jobs.map((job) => ({
+        id: job.id,
+        type: job.type,
+        status: job.status.toLowerCase(),
+        progress: 0,
+        attempts: job.attempts,
+        maxAttempts: job.maxAttempts,
+        result: job.result,
+        error: job.error,
+        createdAt: job.createdAt.toISOString(),
+        startedAt: job.startedAt?.toISOString() ?? null,
+        completedAt: job.completedAt?.toISOString() ?? null,
+      }))
+    );
+  });
+
   // POST /jobs — Submit a new job
   server.post<{ Body: SubmitJobRequest }>('/jobs', async (request, reply) => {
     const { type, payload, retries = 3, backoff = 'exponential',
