@@ -6,37 +6,63 @@ import { StatusBadge } from '../components/StatusBadge';
 export function WorkflowsView() {
   const { workflows, loading } = useWorkflows();
 
-  if (loading) return <div className="loader">Loading workflows...</div>;
+  if (loading) {
+    return (
+      <div className="loader">
+        <div className="spinner" />
+        Loading workflows…
+      </div>
+    );
+  }
 
   return (
     <div className="view">
-      <h1>Workflows</h1>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th>Completed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {workflows.map((wf) => (
-            <tr key={wf.id}>
-              <td>
-                <Link to={`/workflows/${wf.id}`} className="id-link">
-                  {wf.id.slice(0, 8)}...
-                </Link>
-              </td>
-              <td>{wf.name}</td>
-              <td><StatusBadge status={wf.status} /></td>
-              <td>{new Date(wf.createdAt).toLocaleString()}</td>
-              <td>{wf.completedAt ? new Date(wf.completedAt).toLocaleString() : '—'}</td>
+      <div className="page-header">
+        <h1 className="page-title">Workflows</h1>
+        {workflows.length > 0 && <span className="page-count">{workflows.length}</span>}
+      </div>
+      <div className="table-card">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Completed</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {workflows.length === 0 ? (
+              <tr>
+                <td colSpan={5}>
+                  <div className="empty-state">
+                    <span className="empty-state-icon">⬡</span>
+                    <div>No workflows yet</div>
+                    <div className="empty-state-text">Workflows will appear here once they are started.</div>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              workflows.map((wf) => (
+                <tr key={wf.id}>
+                  <td>
+                    <Link to={`/workflows/${wf.id}`} className="id-link">
+                      {wf.id.slice(0, 8)}…
+                    </Link>
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{wf.name}</td>
+                  <td><StatusBadge status={wf.status} /></td>
+                  <td style={{ color: 'var(--text-muted)' }}>{new Date(wf.createdAt).toLocaleString()}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>
+                    {wf.completedAt ? new Date(wf.completedAt).toLocaleString() : '—'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
