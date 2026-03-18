@@ -1,7 +1,7 @@
 api:
   replicaCount: 2
   image:
-    repository: forge-engine/api
+    repository: node-forge-engine/api
     tag: latest
   port: 3000
   resources:
@@ -11,13 +11,13 @@ api:
 orchestrator:
   replicaCount: 2
   image:
-    repository: forge-engine/orchestrator
+    repository: node-forge-engine/orchestrator
     tag: latest
 
 worker:
   replicaCount: 3
   image:
-    repository: forge-engine/worker
+    repository: node-forge-engine/worker
     tag: latest
   autoscaling:
     enabled: true
@@ -28,13 +28,13 @@ worker:
 scheduler:
   replicaCount: 1
   image:
-    repository: forge-engine/scheduler
+    repository: node-forge-engine/scheduler
     tag: latest
 
 dashboard:
   replicaCount: 1
   image:
-    repository: forge-engine/dashboard
+    repository: node-forge-engine/dashboard
     tag: latest
   port: 80
 

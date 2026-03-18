@@ -1,16 +1,16 @@
 import { buildServer } from '../server';
 
-jest.mock('@forge-engine/prisma', () => ({
+jest.mock('@node-forge-engine/prisma', () => ({
   prisma: {
     apiKey: { findUnique: jest.fn().mockResolvedValue({ id: 'k1', keyHash: '' }) },
     job: { findUnique: jest.fn(), create: jest.fn() },
   },
 }));
-jest.mock('@forge-engine/redis', () => require('../../src/__mocks__/redis'));
-jest.mock('@forge-engine/kafka', () => require('../../src/__mocks__/kafka'));
+jest.mock('@node-forge-engine/redis', () => require('../../src/__mocks__/redis'));
+jest.mock('@node-forge-engine/kafka', () => require('../../src/__mocks__/kafka'));
 
-const { prisma } = require('@forge-engine/prisma');
-const { produceMessage } = require('@forge-engine/kafka');
+const { prisma } = require('@node-forge-engine/prisma');
+const { produceMessage } = require('@node-forge-engine/kafka');
 
 describe('POST /jobs', () => {
   let server: any;

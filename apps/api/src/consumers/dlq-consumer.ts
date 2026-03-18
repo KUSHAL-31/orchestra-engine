@@ -1,6 +1,6 @@
-import { kafka, Topics } from '@forge-engine/kafka';
-import { prisma } from '@forge-engine/prisma';
-import type { JobDlqEvent } from '@forge-engine/types';
+import { kafka, Topics } from '@node-forge-engine/kafka';
+import { prisma } from '@node-forge-engine/prisma';
+import type { JobDlqEvent } from '@node-forge-engine/types';
 
 export async function startDlqConsumer() {
   const consumer = kafka.consumer({ groupId: 'api-dlq-consumer' });

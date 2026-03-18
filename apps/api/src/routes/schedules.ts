@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import parser from 'cron-parser';
-import { prisma } from '@forge-engine/prisma';
-import type { CreateScheduleRequest, UpdateScheduleRequest } from '@forge-engine/types';
+import { prisma } from '@node-forge-engine/prisma';
+import type { CreateScheduleRequest, UpdateScheduleRequest } from '@node-forge-engine/types';
 
 export async function scheduleRoutes(server: FastifyInstance) {
   server.get('/schedules', async (_req, reply) => {

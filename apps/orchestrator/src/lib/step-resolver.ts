@@ -1,4 +1,4 @@
-import { WorkflowStep } from '@forge-engine/prisma';
+import { WorkflowStep } from '@node-forge-engine/prisma';
 
 /**
  * Given the list of ALL steps in a workflow and a set of just-completed step IDs,

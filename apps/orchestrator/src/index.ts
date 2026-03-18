@@ -1,11 +1,11 @@
 import 'dotenv/config';
-import { initKafkaTopics } from '@forge-engine/kafka';
-import { redis } from '@forge-engine/redis';
+import { initKafkaTopics } from '@node-forge-engine/kafka';
+import { redis } from '@node-forge-engine/redis';
 import { startWorkflowCreatedConsumer } from './consumers/workflow-created';
 import { startJobCompletedConsumer } from './consumers/job-completed';
 import { startJobFailedConsumer } from './consumers/job-failed';
 import { startJobStartedConsumer } from './consumers/job-started';
-import { createLogger } from '@forge-engine/types';
+import { createLogger } from '@node-forge-engine/types';
 
 const logger = createLogger('orchestrator');
 

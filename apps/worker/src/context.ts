@@ -1,4 +1,4 @@
-import { redis, RedisKeys, RedisTTL } from '@forge-engine/redis';
+import { redis, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
 
 export interface JobContextData {
   jobId: string;

@@ -1,7 +1,7 @@
-import { kafka, Topics, produceMessage } from '@forge-engine/kafka';
-import { redis, withLock, RedisKeys, RedisTTL } from '@forge-engine/redis';
+import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
+import { redis, withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
 import type { JobHandlerFn, WorkerJobContext, WorkerOptions } from './types';
-import type { JobSubmittedEvent, JobRetryEvent, JobStartedEvent, JobCompletedEvent, JobFailedEvent } from '@forge-engine/types';
+import type { JobSubmittedEvent, JobRetryEvent, JobStartedEvent, JobCompletedEvent, JobFailedEvent } from '@node-forge-engine/types';
 import os from 'os';
 
 type AnyJobEvent = (JobSubmittedEvent | JobRetryEvent) & { attempt: number };

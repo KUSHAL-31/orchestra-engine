@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import { buildServer } from './server';
 import { startApiConsumers } from './consumers';
-import { initKafkaTopics } from '@forge-engine/kafka';
-import { redis, redisSubscriber } from '@forge-engine/redis';
-import { createLogger } from '@forge-engine/types';
+import { initKafkaTopics } from '@node-forge-engine/kafka';
+import { redis, redisSubscriber } from '@node-forge-engine/redis';
+import { createLogger } from '@node-forge-engine/types';
 
 const logger = createLogger('api');
 

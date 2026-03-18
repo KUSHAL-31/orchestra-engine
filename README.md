@@ -72,7 +72,7 @@ Forge Engine gives you job scheduling with configurable retries and backoff, mul
 - New API keys can be issued and revoked without restarting any service
 
 ### Developer Experience
-- Fully typed TypeScript SDK (`@forge-engine/sdk`) with `JobEngine` and `Worker` classes
+- Fully typed TypeScript SDK (`@node-forge-engine/sdk`) with `JobEngine` and `Worker` classes
 - Turborepo monorepo — a single `npm run build` compiles all packages and services in dependency order
 - One-command local setup: `docker compose up` starts the entire stack
 - Kafka UI included at port 8080 for inspecting raw message flow during development
@@ -180,8 +180,8 @@ stateDiagram-v2
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/KUSHAL-31/forge-engine.git
-cd forge-engine
+git clone https://github.com/KUSHAL-31/node-forge-engine.git
+cd node-forge-engine
 npm install
 ```
 
@@ -274,7 +274,7 @@ Workers send a heartbeat every 30 seconds. If a worker misses enough heartbeats,
 ### Submit a standalone job
 
 ```typescript
-import { JobEngine } from '@forge-engine/sdk';
+import { JobEngine } from '@node-forge-engine/sdk';
 
 const engine = new JobEngine({
   apiUrl: 'http://localhost:3000',
@@ -376,7 +376,7 @@ await engine.createSchedule({
 ### Register a worker handler
 
 ```typescript
-import { Worker } from '@forge-engine/sdk';
+import { Worker } from '@node-forge-engine/sdk';
 
 const worker = new Worker();
 
@@ -449,7 +449,7 @@ All authenticated requests require: `Authorization: Bearer {apiKey}`
 ## Project Structure
 
 ```
-forge-engine/
+node-forge-engine/
 ├── apps/
 │   ├── api/                  # Fastify REST API (15 routes + SSE + Kafka consumers)
 │   ├── orchestrator/         # Workflow state machine (Kafka consumers, step resolver)
