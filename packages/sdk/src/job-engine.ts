@@ -75,4 +75,23 @@ export class JobEngine {
   async resumeWorkflow(workflowId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>('POST', `/workflows/${workflowId}/resume`);
   }
+
+  /**
+   * Hook into SSE events. Calls onEvent for each event received.
+   * Returns a cleanup function to close the connection.
+   */
+  onEvent(onEvent: (event: { type: string; data: unknown }) => void): () => void {
+    const eventSource = new EventSource(`${this.baseUrl}/events?key=${encodeURIComponent(this.headers.Authorization.slice(7))}`);
+
+    eventSource.onmessage = (e) => {
+      try {
+        const parsed = JSON.parse(e.data);
+        onEvent({ type: e.type || 'message', data: parsed });
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    return () => eventSource.close();
+  }
 }
