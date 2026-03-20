@@ -304,23 +304,23 @@ await worker.start({
 
 ## 📡 API Reference
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `POST` | `/jobs` | Submit a background job | ✅ |
-| `GET` | `/jobs/:id` | Get job status, progress, logs | ✅ |
-| `POST` | `/workflows` | Submit a workflow definition | ✅ |
-| `GET` | `/workflows/:id` | Get workflow + all step statuses | ✅ |
-| `POST` | `/workflows/:id/resume` | Resume a failed workflow | ✅ |
-| `GET` | `/dlq` | List dead letter queue entries | ✅ |
-| `POST` | `/dlq/:id/replay` | Replay a DLQ job | ✅ |
-| `DELETE` | `/dlq/:id` | Delete a DLQ entry | ✅ |
-| `GET` | `/schedules` | List all schedules | ✅ |
-| `POST` | `/schedules` | Create a cron or one-shot schedule | ✅ |
-| `PATCH` | `/schedules/:id` | Update or pause a schedule | ✅ |
-| `DELETE` | `/schedules/:id` | Delete a schedule | ✅ |
-| `GET` | `/workers` | List workers + heartbeat status | ✅ |
-| `GET` | `/events` | SSE stream of live events | ✅ |
-| `GET` | `/health` | Health check | ❌ |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/jobs` | Submit a background job |
+| `GET` | `/jobs/:id` | Get job status, progress, logs |
+| `POST` | `/workflows` | Submit a workflow definition |
+| `GET` | `/workflows/:id` | Get workflow + all step statuses |
+| `POST` | `/workflows/:id/resume` | Resume a failed workflow |
+| `GET` | `/dlq` | List dead letter queue entries |
+| `POST` | `/dlq/:id/replay` | Replay a DLQ job |
+| `DELETE` | `/dlq/:id` | Delete a DLQ entry |
+| `GET` | `/schedules` | List all schedules |
+| `POST` | `/schedules` | Create a cron or one-shot schedule |
+| `PATCH` | `/schedules/:id` | Update or pause a schedule |
+| `DELETE` | `/schedules/:id` | Delete a schedule |
+| `GET` | `/workers` | List workers + heartbeat status |
+| `GET` | `/events` | SSE stream of live events |
+| `GET` | `/health` | Health check |
 
 All authenticated requests require: `Authorization: Bearer {apiKey}`
 
