@@ -25,7 +25,7 @@ export async function dlqRoutes(server: FastifyInstance) {
       data: {
         id: newJobId,
         type: dlqEntry.jobType,
-        payload: dlqEntry.payload,
+        payload: dlqEntry.payload as any,
         status: 'PENDING',
         maxAttempts: 3,
         backoff: 'EXPONENTIAL',

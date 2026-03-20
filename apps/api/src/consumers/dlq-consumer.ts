@@ -18,7 +18,7 @@ export async function startDlqConsumer() {
         create: {
           jobId: event.jobId,
           jobType: event.type,
-          payload: event.payload,
+          payload: event.payload as any,
           errorHistory: event.errorHistory as object[],
         },
       });

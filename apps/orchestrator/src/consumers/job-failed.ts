@@ -93,7 +93,7 @@ async function handleWorkflowJobFailed(event: JobFailedEvent, job: { id: string;
     if (onFailure) {
       const failureJobId = uuidv4();
       await prisma.job.create({
-        data: { id: failureJobId, type: onFailure.type, payload: onFailure.payload, status: 'PENDING' },
+        data: { id: failureJobId, type: onFailure.type, payload: onFailure.payload as any, status: 'PENDING' },
       });
       await produceMessage<JobSubmittedEvent>(Topics.JOB_SUBMITTED, {
         jobId: failureJobId, type: onFailure.type, payload: onFailure.payload,

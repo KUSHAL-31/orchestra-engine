@@ -25,7 +25,7 @@ export async function scheduleRoutes(server: FastifyInstance) {
       data: {
         name, type: type === 'cron' ? 'CRON' : 'ONE_SHOT',
         cronExpr, runAt: runAt ? new Date(runAt) : undefined,
-        nextRunAt, jobType, payload: payload as object,
+        nextRunAt, jobType, payload: payload as any,
       },
     });
 
