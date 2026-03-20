@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json package-lock.json turbo.json ./
+COPY apps/dashboard/package.json ./apps/dashboard/
+RUN npm ci
+
+FROM deps AS builder
+COPY apps/dashboard ./apps/dashboard
+ENV VITE_API_KEY=${VITE_API_KEY:-forge-dev-api-key-12345}
+RUN npm run build --workspace=apps/dashboard
+
+FROM nginx:alpine AS runner
+COPY --from=builder /app/apps/dashboard/dist /usr/share/nginx/html
+COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
