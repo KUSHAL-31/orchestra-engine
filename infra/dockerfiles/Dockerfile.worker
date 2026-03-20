@@ -19,6 +19,7 @@ RUN turbo run build --filter=@forge-engine/worker...
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache openssl
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/kafka/dist ./packages/kafka/dist
