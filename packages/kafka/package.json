@@ -1,0 +1,12 @@
+{
+  "name": "@forge-engine/kafka",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc" },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "@forge-engine/types": "*"
+  }
+}
