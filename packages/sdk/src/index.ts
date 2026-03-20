@@ -6,7 +6,7 @@ export type {
   SubmitWorkflowOptions,
   JobStatus,
   WorkflowStatus,
+  WorkerOptions,
   JobHandlerFn,
   WorkerJobContext,
-  WorkerOptions,
 } from './types';

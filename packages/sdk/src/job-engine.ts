@@ -1,4 +1,10 @@
-import type { JobEngineOptions, SubmitJobOptions, SubmitWorkflowOptions, JobStatus, WorkflowStatus } from './types';
+import type {
+  JobEngineOptions,
+  SubmitJobOptions,
+  SubmitWorkflowOptions,
+  JobStatus,
+  WorkflowStatus,
+} from './types';
 
 export class JobEngine {
   private readonly baseUrl: string;
@@ -12,29 +18,24 @@ export class JobEngine {
     };
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: this.headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(`ForgeEngine API error [${res.status}]: ${(error as Record<string, string>).error}`);
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(
+        `ForgeEngine API error [${res.status}]: ${(err as Record<string, string>).error}`
+      );
     }
 
     return res.json() as Promise<T>;
   }
 
-  /**
-   * Submit a background job.
-   * Returns the jobId.
-   */
+  /** Submit a background job. Returns the jobId. */
   async submitJob(options: SubmitJobOptions): Promise<{ jobId: string }> {
     return this.request<{ jobId: string }>('POST', '/jobs', {
       type: options.type,
@@ -47,51 +48,24 @@ export class JobEngine {
     });
   }
 
-  /**
-   * Get full job status including progress, logs, and result.
-   */
+  /** Get full job status including progress, logs, and result. */
   async getJob(jobId: string): Promise<JobStatus> {
     return this.request<JobStatus>('GET', `/jobs/${jobId}`);
   }
 
-  /**
-   * Submit a workflow definition.
-   * Returns the workflowId.
-   */
+  /** Submit a workflow definition. Returns the workflowId. */
   async submitWorkflow(options: SubmitWorkflowOptions): Promise<{ workflowId: string }> {
     return this.request<{ workflowId: string }>('POST', '/workflows', options);
   }
 
-  /**
-   * Get workflow status and all step statuses.
-   */
+  /** Get workflow status including all step statuses. */
   async getWorkflow(workflowId: string): Promise<WorkflowStatus> {
     return this.request<WorkflowStatus>('GET', `/workflows/${workflowId}`);
   }
 
-  /**
-   * Resume a failed workflow from the failed step.
-   */
+  /** Resume a failed workflow from the failed step. */
   async resumeWorkflow(workflowId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>('POST', `/workflows/${workflowId}/resume`);
   }
 
-  /**
-   * Hook into SSE events. Calls onEvent for each event received.
-   * Returns a cleanup function to close the connection.
-   */
-  onEvent(onEvent: (event: { type: string; data: unknown }) => void): () => void {
-    const eventSource = new EventSource(`${this.baseUrl}/events?key=${encodeURIComponent(this.headers.Authorization.slice(7))}`);
-
-    eventSource.onmessage = (e) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        onEvent({ type: e.type || 'message', data: parsed });
-      } catch {
-        // ignore parse errors
-      }
-    };
-
-    return () => eventSource.close();
-  }
 }
