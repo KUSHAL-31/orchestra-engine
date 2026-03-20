@@ -6,7 +6,7 @@ export function SchedulesView() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => api.getSchedules().then((data) => { setSchedules(data); setLoading(false); });
+  const load = () => api.getSchedules().then((data) => setSchedules(data)).catch(console.error).finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 

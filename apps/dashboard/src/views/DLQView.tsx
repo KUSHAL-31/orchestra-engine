@@ -5,7 +5,7 @@ export function DLQView() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => api.getDLQ().then((data) => { setEntries(data); setLoading(false); });
+  const load = () => api.getDLQ().then((data) => setEntries(data)).catch(console.error).finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 

@@ -7,7 +7,7 @@ export function WorkersView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = () => api.getWorkers().then((data) => { setWorkers(data); setLoading(false); });
+    const load = () => api.getWorkers().then((data) => setWorkers(data)).catch(console.error).finally(() => setLoading(false));
     load();
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
