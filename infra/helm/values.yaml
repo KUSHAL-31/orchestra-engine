@@ -1,0 +1,50 @@
+api:
+  replicaCount: 2
+  image:
+    repository: forge-engine/api
+    tag: latest
+  port: 3000
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+orchestrator:
+  replicaCount: 2
+  image:
+    repository: forge-engine/orchestrator
+    tag: latest
+
+worker:
+  replicaCount: 3
+  image:
+    repository: forge-engine/worker
+    tag: latest
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+
+scheduler:
+  replicaCount: 1
+  image:
+    repository: forge-engine/scheduler
+    tag: latest
+
+dashboard:
+  replicaCount: 1
+  image:
+    repository: forge-engine/dashboard
+    tag: latest
+  port: 80
+
+config:
+  kafkaBrokers: "kafka:9092"
+  redisHost: redis-master
+  redisPort: "6379"
+  apiBaseUrl: "http://api:3000"
+
+secrets:
+  databaseUrl: ""
+  redisPassword: ""
+  apiKeySeed: ""
