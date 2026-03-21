@@ -9,12 +9,20 @@ import { JobHandler } from './context';
 // ─── Register your job handlers here ─────────────────────────────────────────
 import { sendEmailHandler } from './handlers/send-email';
 import { generateReportHandler } from './handlers/generate-report';
+import { validateOrderHandler } from './handlers/validate-order';
+import { chargePaymentHandler } from './handlers/charge-payment';
+import { updateInventoryHandler } from './handlers/update-inventory';
+import { notifyWarehouseHandler } from './handlers/notify-warehouse';
 
 const logger = createLogger('worker');
 
 const handlers = new Map<string, JobHandler>([
   ['send-email', sendEmailHandler],
   ['generate-report', generateReportHandler],
+  ['validate-order', validateOrderHandler],
+  ['charge-payment', chargePaymentHandler],
+  ['update-inventory', updateInventoryHandler],
+  ['notify-warehouse', notifyWarehouseHandler],
 ]);
 
 async function main() {

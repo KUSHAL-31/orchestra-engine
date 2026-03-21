@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function startJobCompletedConsumer() {
   const consumer = kafka.consumer({
-    groupId: process.env.KAFKA_GROUP_ID_ORCHESTRATOR ?? 'orchestrator',
+    groupId: `${process.env.KAFKA_GROUP_ID_ORCHESTRATOR ?? 'orchestrator'}-job-completed`,
   });
   await consumer.connect();
   await consumer.subscribe({ topics: [Topics.JOB_COMPLETED], fromBeginning: false });
