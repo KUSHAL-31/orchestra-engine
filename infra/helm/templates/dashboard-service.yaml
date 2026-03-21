@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-dashboard
 spec:
   selector:
-    app: forge-dashboard
+    app: orchestra-dashboard
   ports:
     - port: {{ .Values.dashboard.port }}
       targetPort: {{ .Values.dashboard.port }}

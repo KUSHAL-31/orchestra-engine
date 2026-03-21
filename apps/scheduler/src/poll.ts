@@ -8,7 +8,7 @@ import type { ScheduleTickEvent } from '@orchestra-engine/types';
 const logger = createLogger('scheduler:poll');
 
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000';
-const INTERNAL_API_KEY = process.env.API_KEY_SEED ?? 'forge-dev-api-key-12345';
+const INTERNAL_API_KEY = process.env.API_KEY_SEED ?? 'orchestra-dev-api-key-12345';
 
 export async function runSchedulerPoll(): Promise<void> {
   // RULE: Acquire Redis lock BEFORE polling — INVARIANT-005

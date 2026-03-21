@@ -33,7 +33,7 @@ curl http://localhost:3000/health
 # {"status":"ok","service":"api"}
 ```
 
-> The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `forge-dev-api-key-12345`.
+> The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `orchestra-dev-api-key-12345`.
 
 ---
 

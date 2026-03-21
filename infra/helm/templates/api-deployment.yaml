@@ -6,11 +6,11 @@ spec:
   replicas: {{ .Values.api.replicaCount }}
   selector:
     matchLabels:
-      app: forge-api
+      app: orchestra-api
   template:
     metadata:
       labels:
-        app: forge-api
+        app: orchestra-api
     spec:
       containers:
         - name: api

@@ -6,11 +6,11 @@ spec:
   replicas: {{ .Values.scheduler.replicaCount }}
   selector:
     matchLabels:
-      app: forge-scheduler
+      app: orchestra-scheduler
   template:
     metadata:
       labels:
-        app: forge-scheduler
+        app: orchestra-scheduler
     spec:
       containers:
         - name: scheduler

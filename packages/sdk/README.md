@@ -201,7 +201,7 @@ Whatever a handler returns becomes `job.result`. If it throws, the job fails and
 | `redisHost` | `string` | `'localhost'` | Redis host |
 | `redisPort` | `number` | `6379` | Redis port |
 | `redisPassword` | `string` | — | Redis password (if auth enabled) |
-| `groupId` | `string` | `'forge-sdk-workers'` | Kafka consumer group ID |
+| `groupId` | `string` | `'orchestra-sdk-workers'` | Kafka consumer group ID |
 | `clientId` | `string` | `'orchestra-engine-sdk-worker'` | Kafka client ID |
 
 ---

@@ -101,7 +101,7 @@ export class Worker {
     await this.producer.connect();
 
     this.consumer = kafka.consumer({
-      groupId: options.groupId ?? 'forge-sdk-workers',
+      groupId: options.groupId ?? 'orchestra-sdk-workers',
     });
     await this.consumer.connect();
     await this.consumer.subscribe({
