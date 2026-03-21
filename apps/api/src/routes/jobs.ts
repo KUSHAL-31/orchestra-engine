@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '@forge-engine/prisma';
-import { produceMessage, Topics } from '@forge-engine/kafka';
-import { redis, RedisKeys } from '@forge-engine/redis';
-import type { SubmitJobRequest, JobSubmittedEvent } from '@forge-engine/types';
+import { prisma } from '@node-forge-engine/prisma';
+import { produceMessage, Topics } from '@node-forge-engine/kafka';
+import { redis, RedisKeys } from '@node-forge-engine/redis';
+import type { SubmitJobRequest, JobSubmittedEvent } from '@node-forge-engine/types';
 
 export async function jobRoutes(server: FastifyInstance) {
 

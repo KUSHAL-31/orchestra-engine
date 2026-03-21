@@ -1,9 +1,9 @@
-import { prisma } from '@forge-engine/prisma';
-import { withLock, RedisKeys, RedisTTL } from '@forge-engine/redis';
-import { produceMessage, Topics } from '@forge-engine/kafka';
+import { prisma } from '@node-forge-engine/prisma';
+import { withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
+import { produceMessage, Topics } from '@node-forge-engine/kafka';
 import { getNextCronDate } from './cron-utils';
-import { createLogger } from '@forge-engine/types';
-import type { ScheduleTickEvent } from '@forge-engine/types';
+import { createLogger } from '@node-forge-engine/types';
+import type { ScheduleTickEvent } from '@node-forge-engine/types';
 
 const logger = createLogger('scheduler:poll');
 

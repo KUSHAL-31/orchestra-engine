@@ -1,6 +1,6 @@
-import { kafka, Topics, produceMessage } from '@forge-engine/kafka';
-import { prisma } from '@forge-engine/prisma';
-import type { WorkflowCreatedEvent, JobSubmittedEvent } from '@forge-engine/types';
+import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
+import { prisma } from '@node-forge-engine/prisma';
+import type { WorkflowCreatedEvent, JobSubmittedEvent } from '@node-forge-engine/types';
 import { resolveFirstSteps } from '../lib/step-resolver';
 import { v4 as uuidv4 } from 'uuid';
 

@@ -14,7 +14,7 @@ RUN npm ci
 
 FROM deps AS builder
 COPY . .
-RUN turbo run build --filter=@forge-engine/api...
+RUN turbo run build --filter=@node-forge-engine/api...
 
 FROM node:20-alpine AS runner
 WORKDIR /app

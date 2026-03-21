@@ -1,5 +1,5 @@
 {
-  "name": "@forge-engine/dashboard",
+  "name": "@node-forge-engine/dashboard",
   "version": "1.0.0",
   "private": true,
   "scripts": {

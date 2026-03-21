@@ -1,5 +1,5 @@
-import { kafka, Topics } from '@forge-engine/kafka';
-import { redis, PubSubChannels } from '@forge-engine/redis';
+import { kafka, Topics } from '@node-forge-engine/kafka';
+import { redis, PubSubChannels } from '@node-forge-engine/redis';
 
 export async function startWorkflowEventsConsumer() {
   const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_GROUP_ID_API ?? 'api-consumers'}-workflow` });

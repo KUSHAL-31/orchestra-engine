@@ -16,8 +16,8 @@ const RUN_INTEGRATION = process.env.TEST_INTEGRATION === 'true';
 
   beforeAll(async () => {
     // Initialize real connections
-    const { JobEngine } = await import('@forge-engine/sdk');
-    const { Worker } = await import('@forge-engine/sdk');
+    const { JobEngine } = await import('@node-forge-engine/sdk');
+    const { Worker } = await import('@node-forge-engine/sdk');
 
     engine = new JobEngine({
       apiUrl: process.env.API_BASE_URL ?? 'http://localhost:3000',

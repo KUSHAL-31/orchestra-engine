@@ -2,7 +2,7 @@ import { JobContext } from '../context';
 
 describe('JobContext', () => {
   const mockRedis = { set: jest.fn(), rpush: jest.fn(), expire: jest.fn() };
-  jest.mock('@forge-engine/redis', () => ({ redis: mockRedis, RedisKeys: { jobProgress: (id: string) => `job:progress:${id}`, jobLogs: (id: string) => `job:logs:${id}` }, RedisTTL: { JOB_STATE: 604800 } }));
+  jest.mock('@node-forge-engine/redis', () => ({ redis: mockRedis, RedisKeys: { jobProgress: (id: string) => `job:progress:${id}`, jobLogs: (id: string) => `job:logs:${id}` }, RedisTTL: { JOB_STATE: 604800 } }));
 
   test('progress clamps to 0-100', async () => {
     const ctx = new JobContext({ jobId: 'j1', data: {}, type: 't', attempt: 0 });

@@ -1,7 +1,7 @@
 import os from 'os';
-import { prisma } from '@forge-engine/prisma';
-import { redis, RedisKeys, RedisTTL } from '@forge-engine/redis';
-import { createLogger } from '@forge-engine/types';
+import { prisma } from '@node-forge-engine/prisma';
+import { redis, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
+import { createLogger } from '@node-forge-engine/types';
 
 const logger = createLogger('worker:heartbeat');
 

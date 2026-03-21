@@ -1,5 +1,5 @@
 {
-  "name": "@forge-engine/sdk",
+  "name": "@node-forge-engine/sdk",
   "version": "1.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -7,9 +7,9 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@forge-engine/types": "*",
-    "@forge-engine/kafka": "*",
-    "@forge-engine/redis": "*"
+    "@node-forge-engine/types": "*",
+    "@node-forge-engine/kafka": "*",
+    "@node-forge-engine/redis": "*"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

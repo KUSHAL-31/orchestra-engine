@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { redisSubscriber, PubSubChannels } from '@forge-engine/redis';
+import { redisSubscriber, PubSubChannels } from '@node-forge-engine/redis';
 
 export async function eventsRoutes(server: FastifyInstance) {
   server.get('/events', async (request, reply) => {

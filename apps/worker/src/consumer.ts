@@ -1,9 +1,9 @@
-import { kafka, Topics, produceMessage } from '@forge-engine/kafka';
-import { redis, withLock, RedisKeys, RedisTTL } from '@forge-engine/redis';
+import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
+import { redis, withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
 import { JobContext, JobHandler } from './context';
 import { getWorkerId } from './heartbeat';
-import { createLogger } from '@forge-engine/types';
-import type { JobSubmittedEvent, JobRetryEvent, JobStartedEvent, JobCompletedEvent, JobFailedEvent } from '@forge-engine/types';
+import { createLogger } from '@node-forge-engine/types';
+import type { JobSubmittedEvent, JobRetryEvent, JobStartedEvent, JobCompletedEvent, JobFailedEvent } from '@node-forge-engine/types';
 
 const logger = createLogger('worker:consumer');
 
