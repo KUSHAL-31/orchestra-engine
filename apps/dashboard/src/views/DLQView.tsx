@@ -51,7 +51,7 @@ export function DLQView() {
             ) : (
               entries.map((e) => (
                 <tr key={e.id}>
-                  <td><code>{e.jobId.slice(0, 8)}…</code></td>
+                  <td><code>{e.jobId}</code></td>
                   <td><code>{e.jobType}</code></td>
                   <td style={{ color: 'var(--danger)', fontWeight: 600 }}>
                     {Array.isArray(e.errorHistory) ? e.errorHistory.length : 0}

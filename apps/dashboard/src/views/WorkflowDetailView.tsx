@@ -51,9 +51,9 @@ export function WorkflowDetailView() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Status</th>
                 <th>Depends On</th>
                 <th>Group</th>
                 <th>Executed</th>
@@ -62,10 +62,12 @@ export function WorkflowDetailView() {
             <tbody>
               {workflow.steps.map((step: any) => (
                 <tr key={step.id}>
+                  <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>{step.id}</td>
                   <td style={{ fontWeight: 600 }}>{step.name}</td>
                   <td><code>{step.jobType}</code></td>
-                  <td><StatusBadge status={step.status} /></td>
-                  <td style={{ color: 'var(--text-muted)' }}>{step.dependsOn.join(', ') || '—'}</td>
+                  <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    {(step.dependsOn as string[]).map((id: string) => id).join(', ') || '—'}
+                  </td>
                   <td style={{ color: 'var(--text-muted)' }}>{step.parallelGroup ?? '—'}</td>
                   <td style={{ color: 'var(--text-muted)' }}>
                     {step.executedAt ? new Date(step.executedAt).toLocaleString() : '—'}

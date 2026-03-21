@@ -50,7 +50,7 @@ export function JobsView() {
                 <tr key={job.id}>
                   <td>
                     <Link to={`/jobs/${job.id}`} className="id-link">
-                      {job.id.slice(0, 8)}…
+                      {job.id}
                     </Link>
                   </td>
                   <td><code>{job.type}</code></td>
