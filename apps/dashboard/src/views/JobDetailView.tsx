@@ -28,7 +28,7 @@ export function JobDetailView() {
     <div className="view">
       <div className="view-header">
         <h1 className="page-title" style={{ fontFamily: 'var(--mono)', fontSize: '1.1rem' }}>
-          {job.id.slice(0, 8)}…
+          {job.id}
         </h1>
         <StatusBadge status={job.status} />
       </div>
