@@ -15,51 +15,67 @@ export function WorkflowDetailView() {
     return () => clearInterval(interval);
   }, [id]);
 
-  if (!workflow) return <div className="loader">Loading workflow...</div>;
+  if (!workflow) {
+    return (
+      <div className="loader">
+        <div className="spinner" />
+        Loading workflow…
+      </div>
+    );
+  }
 
   return (
     <div className="view">
       <div className="view-header">
-        <h1>{workflow.name}</h1>
+        <h1 className="page-title">{workflow.name}</h1>
         <StatusBadge status={workflow.status} />
+        {workflow.status === 'failed' && (
+          <button
+            className="btn btn-primary"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => api.resumeWorkflow(workflow.id).then(() => api.getWorkflow(id!).then(setWorkflow))}
+          >
+            Resume Workflow
+          </button>
+        )}
       </div>
 
-      <section>
-        <h2>Step Graph</h2>
+      <div className="section">
+        <div className="section-title">Step Graph</div>
         <StepGraph steps={workflow.steps} />
-      </section>
+      </div>
 
-      <section>
-        <h2>Steps ({workflow.steps.length})</h2>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th><th>Type</th><th>Status</th><th>Depends On</th><th>Group</th><th>Executed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workflow.steps.map((step: any) => (
-              <tr key={step.id}>
-                <td><strong>{step.name}</strong></td>
-                <td><code>{step.jobType}</code></td>
-                <td><StatusBadge status={step.status} /></td>
-                <td>{step.dependsOn.join(', ') || '—'}</td>
-                <td>{step.parallelGroup ?? '—'}</td>
-                <td>{step.executedAt ? new Date(step.executedAt).toLocaleString() : '—'}</td>
+      <div className="section">
+        <div className="section-title">Steps ({workflow.steps.length})</div>
+        <div className="table-card">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Depends On</th>
+                <th>Group</th>
+                <th>Executed</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {workflow.status === 'failed' && (
-        <button
-          className="btn btn-primary"
-          onClick={() => api.resumeWorkflow(workflow.id).then(() => api.getWorkflow(id!).then(setWorkflow))}
-        >
-          Resume Workflow
-        </button>
-      )}
+            </thead>
+            <tbody>
+              {workflow.steps.map((step: any) => (
+                <tr key={step.id}>
+                  <td style={{ fontWeight: 600 }}>{step.name}</td>
+                  <td><code>{step.jobType}</code></td>
+                  <td><StatusBadge status={step.status} /></td>
+                  <td style={{ color: 'var(--text-muted)' }}>{step.dependsOn.join(', ') || '—'}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{step.parallelGroup ?? '—'}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>
+                    {step.executedAt ? new Date(step.executedAt).toLocaleString() : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,22 @@ export function getWorkerId(): string {
 
 export async function registerWorker(jobTypes: string[]): Promise<void> {
   const workerId = getWorkerId();
+
+  // Remove stale records: dead workers or those whose heartbeat expired (> 60s ago)
+  const staleThreshold = new Date(Date.now() - 60_000);
+  const deleted = await prisma.worker.deleteMany({
+    where: {
+      id: { not: workerId },
+      OR: [
+        { status: 'DEAD' },
+        { lastHeartbeat: { lt: staleThreshold } },
+      ],
+    },
+  });
+  if (deleted.count > 0) {
+    logger.info({ count: deleted.count }, 'Pruned stale worker records');
+  }
+
   await prisma.worker.upsert({
     where: { id: workerId },
     update: { status: 'ACTIVE', lastHeartbeat: new Date(), jobTypes },
