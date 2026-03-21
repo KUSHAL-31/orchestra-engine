@@ -1,4 +1,4 @@
-# Forge Engine
+# Orchestra Engine
 
 > A self-hostable, open-source **Distributed Job Scheduler & Workflow Engine** built in TypeScript.
 
@@ -158,7 +158,7 @@ console.log(job.result);    // { sent: true }
 
 ### Register a Worker
 
-Register handlers for each job type your service processes. Forge Engine handles Kafka consumption, distributed locking, retries, and progress streaming — you just write the function.
+Register handlers for each job type your service processes. Orchestra Engine handles Kafka consumption, distributed locking, retries, and progress streaming — you just write the function.
 
 ```typescript
 import { Worker } from '@orchestra-engine/sdk';
@@ -516,7 +516,7 @@ Register a handler in `apps/worker/src/handlers/` and add it to the handlers Map
 The Kafka consumer group rebalances and the message is re-delivered to another worker. The Redlock TTL (30s) expires, so the new worker acquires the lock and executes the job without duplication.
 
 **What happens if Kafka goes down?**
-Forge Engine writes to Postgres before producing to Kafka. The job record already exists and can be requeued on Kafka recovery. Postgres is always the source of truth.
+Orchestra Engine writes to Postgres before producing to Kafka. The job record already exists and can be requeued on Kafka recovery. Postgres is always the source of truth.
 
 **Can I run multiple worker instances?**
 Yes. Kafka consumer groups distribute jobs across replicas automatically. Redlock ensures only one worker executes a given job at a time.

@@ -1,6 +1,6 @@
 # orchestra-engine
 
-Node.js SDK for [Node Forge Engine](https://github.com/KUSHAL-31/orchestra-engine) — a self-hosted background job engine with Kafka, Redis, and a real-time dashboard.
+Node.js SDK for [Orchestra Engine](https://github.com/KUSHAL-31/orchestra-engine) — a self-hosted background job engine with Kafka, Redis, and a real-time dashboard.
 
 Install the SDK in your existing backend to:
 - Submit jobs and workflows to the engine from any Node.js service
@@ -9,7 +9,7 @@ Install the SDK in your existing backend to:
 ## Requirements
 
 - Node.js >= 20.0.0
-- A running Forge Engine stack (API + Kafka + Redis) — see the [main repo](https://github.com/KUSHAL-31/orchestra-engine) for setup
+- A running Orchestra Engine stack (API + Kafka + Redis) — see the [main repo](https://github.com/KUSHAL-31/orchestra-engine) for setup
 
 ## Installation
 
@@ -21,13 +21,13 @@ npm install orchestra-engine
 
 ## JobEngine — Submit jobs from your backend
 
-Use `JobEngine` to submit jobs and workflows from any existing service. It talks to the Forge Engine REST API over HTTP — no Kafka or Redis connection needed on the client side.
+Use `JobEngine` to submit jobs and workflows from any existing service. It talks to the Orchestra Engine REST API over HTTP — no Kafka or Redis connection needed on the client side.
 
 ```typescript
 import { JobEngine } from 'orchestra-engine';
 
 const engine = new JobEngine({
-  apiUrl: 'http://localhost:3000',  // your Forge Engine API URL
+  apiUrl: 'http://localhost:3000',  // your Orchestra Engine API URL
   apiKey: 'your-api-key',
 });
 ```
