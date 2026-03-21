@@ -60,6 +60,11 @@ body {
   display: flex;
   flex-direction: column;
   padding-bottom: 1rem;
+  transition: width 0.2s ease;
+}
+
+.sidebar--collapsed {
+  width: 60px;
 }
 
 .sidebar-header {
@@ -68,6 +73,37 @@ body {
   display: flex;
   align-items: center;
   gap: 0.625rem;
+}
+
+.sidebar--collapsed .sidebar-header {
+  justify-content: center;
+  padding: 1.25rem 0.75rem 1.125rem;
+}
+
+.sidebar-toggle {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar--collapsed .sidebar-toggle {
+  margin-left: 0;
 }
 
 .sidebar-logo {
@@ -146,6 +182,15 @@ body {
 
 .sidebar-link-active:hover {
   background: var(--primary-dim);
+}
+
+.sidebar--collapsed .sidebar-link {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.sidebar--collapsed .sidebar-link-icon {
+  width: auto;
 }
 
 /* ─── Views ───────────────────────────────────────────────── */

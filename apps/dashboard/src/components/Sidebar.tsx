@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
@@ -10,24 +10,34 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">F</div>
-        <h2>Forge Engine</h2>
+        {!collapsed && <h2>Forge Engine</h2>}
+        <button
+          className="sidebar-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
       </div>
       <nav className="sidebar-nav">
-        <div className="sidebar-nav-label">Navigation</div>
+        {!collapsed && <div className="sidebar-nav-label">Navigation</div>}
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
+            title={collapsed ? item.label : undefined}
             className={({ isActive }) =>
               `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
             }
           >
             <span className="sidebar-link-icon">{item.icon}</span>
-            {item.label}
+            {!collapsed && item.label}
           </NavLink>
         ))}
       </nav>
