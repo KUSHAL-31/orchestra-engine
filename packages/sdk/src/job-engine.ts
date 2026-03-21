@@ -72,10 +72,23 @@ export class JobEngine {
    * Listen to real-time job/workflow events via Server-Sent Events.
    * Returns a cleanup function — call it to close the connection.
    *
-   * Note: requires EventSource to be available (browsers natively,
-   * Node.js via the `eventsource` npm package).
+   * Browser: works natively (EventSource is a browser built-in).
+   * Node.js: requires the `eventsource` package — install it separately:
+   *   npm install eventsource
+   *   import 'eventsource/lib/eventsource-polyfill';  // before calling onEvent()
+   *
+   * Throws if EventSource is not available in the current environment.
    */
   onEvent(callback: (event: { type: string; data: unknown }) => void): () => void {
+    if (typeof EventSource === 'undefined') {
+      throw new Error(
+        '[node-forge-engine] EventSource is not available in this environment.\n' +
+        'In Node.js, install the eventsource package and polyfill it before calling onEvent():\n' +
+        '  npm install eventsource\n' +
+        '  import "eventsource/lib/eventsource-polyfill";'
+      );
+    }
+
     const apiKey = this.headers['Authorization'].slice(7);
     const url = `${this.baseUrl}/events?key=${encodeURIComponent(apiKey)}`;
     const source = new EventSource(url);
