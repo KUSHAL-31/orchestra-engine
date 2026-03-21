@@ -2,7 +2,7 @@ import { buildServer } from '../server';
 import crypto from 'crypto';
 
 // Mock prisma
-jest.mock('@node-forge-engine/prisma', () => ({
+jest.mock('@orchestra-engine/prisma', () => ({
   prisma: {
     apiKey: {
       findUnique: jest.fn(),
@@ -11,10 +11,10 @@ jest.mock('@node-forge-engine/prisma', () => ({
     job: { findUnique: jest.fn(), create: jest.fn() },
   },
 }));
-jest.mock('@node-forge-engine/redis', () => require('../../src/__mocks__/redis'));
-jest.mock('@node-forge-engine/kafka', () => require('../../src/__mocks__/kafka'));
+jest.mock('@orchestra-engine/redis', () => require('../../src/__mocks__/redis'));
+jest.mock('@orchestra-engine/kafka', () => require('../../src/__mocks__/kafka'));
 
-const { prisma } = require('@node-forge-engine/prisma');
+const { prisma } = require('@orchestra-engine/prisma');
 
 describe('Auth middleware', () => {
   let server: Awaited<ReturnType<typeof buildServer>>;

@@ -128,7 +128,7 @@ export interface WorkerOptions {
   redisPassword?: string;
   /** Kafka consumer group ID (default: 'forge-sdk-workers') */
   groupId?: string;
-  /** Kafka client ID (default: 'forge-engine-sdk-worker') */
+  /** Kafka client ID (default: 'orchestra-engine-sdk-worker') */
   clientId?: string;
 }
 

@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import { initKafkaTopics } from '@node-forge-engine/kafka';
-import { redis } from '@node-forge-engine/redis';
+import { initKafkaTopics } from '@orchestra-engine/kafka';
+import { redis } from '@orchestra-engine/redis';
 import { runSchedulerPoll } from './poll';
-import { createLogger } from '@node-forge-engine/types';
+import { createLogger } from '@orchestra-engine/types';
 
 const logger = createLogger('scheduler');
 

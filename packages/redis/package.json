@@ -1,5 +1,5 @@
 {
-  "name": "@node-forge-engine/redis",
+  "name": "@orchestra-engine/redis",
   "version": "1.0.0",
   "private": true,
   "main": "dist/index.js",

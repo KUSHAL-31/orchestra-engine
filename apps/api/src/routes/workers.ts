@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { prisma } from '@node-forge-engine/prisma';
+import { prisma } from '@orchestra-engine/prisma';
 
 export async function workerRoutes(server: FastifyInstance) {
   server.get('/workers', async (_req, reply) => {

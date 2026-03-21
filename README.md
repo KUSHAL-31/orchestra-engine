@@ -16,8 +16,8 @@ Submit background jobs, chain them into multi-step workflows, schedule them with
 **Prerequisites:** Docker + Docker Compose
 
 ```bash
-git clone https://github.com/KUSHAL-31/node-forge-engine.git
-cd node-forge-engine
+git clone https://github.com/KUSHAL-31/orchestra-engine.git
+cd orchestra-engine
 docker compose -f infra/docker-compose.yml up -d
 ```
 
@@ -122,13 +122,13 @@ stateDiagram-v2
 Install the SDK in your Node.js project:
 
 ```bash
-npm install @node-forge-engine/sdk
+npm install @orchestra-engine/sdk
 ```
 
 ### Submit a Job
 
 ```typescript
-import { JobEngine } from '@node-forge-engine/sdk';
+import { JobEngine } from '@orchestra-engine/sdk';
 
 const engine = new JobEngine({
   apiUrl: process.env.API_BASE_URL,   // e.g. http://localhost:3000
@@ -161,7 +161,7 @@ console.log(job.result);    // { sent: true }
 Register handlers for each job type your service processes. Forge Engine handles Kafka consumption, distributed locking, retries, and progress streaming — you just write the function.
 
 ```typescript
-import { Worker } from '@node-forge-engine/sdk';
+import { Worker } from '@orchestra-engine/sdk';
 
 const worker = new Worker();
 
@@ -486,7 +486,7 @@ React SPA at `http://localhost:5173`. Connects to the SSE stream on load — all
 ## Project Structure
 
 ```
-node-forge-engine/
+orchestra-engine/
 ├── apps/
 │   ├── api/            # Fastify REST API + SSE + Kafka consumers
 │   ├── orchestrator/   # Workflow state machine and step resolver

@@ -1,5 +1,5 @@
-import { kafka, Topics } from '@node-forge-engine/kafka';
-import { redis, PubSubChannels } from '@node-forge-engine/redis';
+import { kafka, Topics } from '@orchestra-engine/kafka';
+import { redis, PubSubChannels } from '@orchestra-engine/redis';
 
 export async function startJobEventsConsumer() {
   const consumer = kafka.consumer({ groupId: process.env.KAFKA_GROUP_ID_API ?? 'api-consumers' });

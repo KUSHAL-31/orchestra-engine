@@ -1,6 +1,6 @@
-import { kafka, Topics } from '@node-forge-engine/kafka';
-import { prisma } from '@node-forge-engine/prisma';
-import type { ScheduleTickEvent } from '@node-forge-engine/types';
+import { kafka, Topics } from '@orchestra-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import type { ScheduleTickEvent } from '@orchestra-engine/types';
 
 export async function startScheduleAuditConsumer() {
   const consumer = kafka.consumer({ groupId: 'api-schedule-audit' });

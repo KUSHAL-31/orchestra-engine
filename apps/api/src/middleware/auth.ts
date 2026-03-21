@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
-import { prisma } from '@node-forge-engine/prisma';
-import { redis, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
+import { prisma } from '@orchestra-engine/prisma';
+import { redis, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
 
 const EXEMPT_PATHS = ['/health'];
 

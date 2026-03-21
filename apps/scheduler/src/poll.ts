@@ -1,9 +1,9 @@
-import { prisma } from '@node-forge-engine/prisma';
-import { withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
-import { produceMessage, Topics } from '@node-forge-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { withLock, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
+import { produceMessage, Topics } from '@orchestra-engine/kafka';
 import { getNextCronDate } from './cron-utils';
-import { createLogger } from '@node-forge-engine/types';
-import type { ScheduleTickEvent } from '@node-forge-engine/types';
+import { createLogger } from '@orchestra-engine/types';
+import type { ScheduleTickEvent } from '@orchestra-engine/types';
 
 const logger = createLogger('scheduler:poll');
 
