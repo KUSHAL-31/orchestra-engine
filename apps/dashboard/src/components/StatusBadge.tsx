@@ -13,7 +13,7 @@ const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const key = status.toLowerCase();
+  const key = (status ?? '').toLowerCase();
   const style = BADGE_STYLES[key] ?? { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' };
   return (
     <span

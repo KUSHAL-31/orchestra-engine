@@ -12,6 +12,11 @@ export function useJobs() {
       .then((data: Job[]) => setJobs(data))
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    const interval = setInterval(() => {
+      api.getJobs().then((data: Job[]) => setJobs(data)).catch(console.error);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const jobList = Array.from(jobs.values()).sort(
