@@ -1,18 +1,57 @@
-import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
-import { redis, withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
-import type { JobHandlerFn, WorkerJobContext, WorkerOptions } from './types';
-import type { JobSubmittedEvent, JobRetryEvent, JobStartedEvent, JobCompletedEvent, JobFailedEvent } from '@node-forge-engine/types';
+import { Kafka, Producer, Consumer, CompressionTypes, logLevel } from 'kafkajs';
+import Redis from 'ioredis';
+import Redlock from 'redlock';
 import os from 'os';
+import type { JobHandlerFn, WorkerOptions, WorkerJobContext } from './types';
 
-type AnyJobEvent = (JobSubmittedEvent | JobRetryEvent) & { attempt: number };
+// ─── Kafka topic names (mirrors the engine internals) ─────────────────────────
+const Topics = {
+  JOB_SUBMITTED: 'job.submitted',
+  JOB_RETRY:     'job.retry',
+  JOB_STARTED:   'job.started',
+  JOB_COMPLETED: 'job.completed',
+  JOB_FAILED:    'job.failed',
+} as const;
+
+// ─── Redis key builders (mirrors the engine internals) ────────────────────────
+const Keys = {
+  lockJob:     (id: string) => `lock:job:${id}`,
+  jobState:    (id: string) => `job:state:${id}`,
+  jobProgress: (id: string) => `job:progress:${id}`,
+  jobLogs:     (id: string) => `job:logs:${id}`,
+};
+
+const JOB_STATE_TTL_S  = 7 * 24 * 60 * 60; // 7 days
+const LOCK_JOB_TTL_MS  = 30_000;            // 30 seconds
+
+type JobEvent = {
+  jobId:        string;
+  type:         string;
+  payload:      Record<string, unknown>;
+  attempt:      number;
+  maxAttempts:  number;
+  retryAfterMs?: number;
+  workflowId?:  string;
+  stepId?:      string;
+};
 
 export class Worker {
-  private handlers = new Map<string, JobHandlerFn>();
-  private workerId = `sdk-worker-${os.hostname()}-${process.pid}`;
+  private readonly handlers = new Map<string, JobHandlerFn>();
+  private readonly workerId: string;
+
+  private consumer: Consumer | null = null;
+  private producer: Producer | null = null;
+  private redisMain: Redis | null = null;
+  private redisLock: Redis | null = null;
+
+  constructor() {
+    this.workerId = `sdk-worker-${os.hostname()}-${process.pid}`;
+  }
 
   /**
-   * Register a handler function for a specific job type.
-   * Call this before worker.start().
+   * Register a handler for a job type.
+   * Must be called before start().
+   * Returns `this` so calls can be chained.
    */
   register(jobType: string, handler: JobHandlerFn): this {
     this.handlers.set(jobType, handler);
@@ -20,77 +59,178 @@ export class Worker {
   }
 
   /**
-   * Start consuming jobs from Kafka. Blocks until stop() is called.
+   * Connect to Kafka and Redis then start consuming jobs.
+   * This call does not block — the consumer runs in the background.
+   * Call stop() for graceful shutdown.
    */
   async start(options: WorkerOptions): Promise<void> {
-    await redis.connect();
+    const redisConfig = {
+      host:     options.redisHost ?? 'localhost',
+      port:     options.redisPort ?? 6379,
+      password: options.redisPassword,
+      lazyConnect: true,
+      retryStrategy: (times: number) => Math.min(times * 100, 3_000),
+    };
 
-    const consumer = kafka.consumer({
-      groupId: options.groupId ?? 'workers',
+    this.redisMain = new Redis(redisConfig);
+    this.redisLock = new Redis(redisConfig);
+    await this.redisMain.connect();
+    await this.redisLock.connect();
+
+    const redlock = new Redlock([this.redisLock], {
+      driftFactor: 0.01,
+      retryCount:  3,
+      retryDelay:  200,
+      retryJitter: 100,
     });
-    await consumer.connect();
-    await consumer.subscribe({
-      topics: [Topics.JOB_SUBMITTED, Topics.JOB_RETRY],
+
+    redlock.on('error', (err: Error) => {
+      if (!err.message.includes('quorum')) {
+        console.error('[forge-engine-sdk] redlock error:', err.message);
+      }
+    });
+
+    const kafka = new Kafka({
+      clientId: options.clientId ?? 'forge-engine-sdk-worker',
+      brokers:  options.kafkaBrokers,
+      logLevel: logLevel.WARN,
+      retry:    { initialRetryTime: 300, retries: 10 },
+    });
+
+    this.producer = kafka.producer({ allowAutoTopicCreation: false });
+    await this.producer.connect();
+
+    this.consumer = kafka.consumer({
+      groupId: options.groupId ?? 'forge-sdk-workers',
+    });
+    await this.consumer.connect();
+    await this.consumer.subscribe({
+      topics:        [Topics.JOB_SUBMITTED, Topics.JOB_RETRY],
       fromBeginning: false,
     });
 
-    const workerId = this.workerId;
-    const handlers = this.handlers;
+    const { workerId, handlers } = this;
+    const redis    = this.redisMain;
+    const producer = this.producer;
 
-    await consumer.run({
+    await this.consumer.run({
       eachMessage: async ({ message }) => {
         if (!message.value) return;
-        const event = JSON.parse(message.value.toString()) as AnyJobEvent;
 
+        const event = JSON.parse(message.value.toString()) as JobEvent;
         const handler = handlers.get(event.type);
-        if (!handler) return;
+        if (!handler) return; // not our job type — skip
 
-        if ('retryAfterMs' in event && event.retryAfterMs > 0) {
+        // Honour retry delay before processing
+        if (event.retryAfterMs && event.retryAfterMs > 0) {
           await new Promise((r) => setTimeout(r, event.retryAfterMs));
         }
 
         try {
-          await withLock(RedisKeys.lockJob(event.jobId), RedisTTL.LOCK_JOB * 1000, async () => {
-            await redis.set(RedisKeys.jobState(event.jobId), 'running', 'EX', RedisTTL.JOB_STATE);
-            await produceMessage<JobStartedEvent>(Topics.JOB_STARTED, {
-              jobId: event.jobId, workerId, startedAt: new Date().toISOString(),
-            }, event.jobId);
+          const lock = await redlock.acquire([Keys.lockJob(event.jobId)], LOCK_JOB_TTL_MS);
 
+          try {
+            // Mark job as running
+            await redis.set(Keys.jobState(event.jobId), 'running', 'EX', JOB_STATE_TTL_S);
+            await producer.send({
+              topic:       Topics.JOB_STARTED,
+              compression: CompressionTypes.GZIP,
+              messages: [{
+                key:   event.jobId,
+                value: JSON.stringify({
+                  jobId: event.jobId,
+                  workerId,
+                  startedAt: new Date().toISOString(),
+                }),
+              }],
+            });
+
+            // Build the context object the handler receives
             const ctx: WorkerJobContext = {
-              jobId: event.jobId,
-              data: event.payload,
-              type: event.type,
+              jobId:   event.jobId,
+              data:    event.payload,
+              type:    event.type,
               attempt: event.attempt,
+
               progress: async (n: number) => {
-                await redis.set(RedisKeys.jobProgress(event.jobId), Math.min(100, Math.max(0, n)), 'EX', RedisTTL.JOB_STATE);
+                await redis.set(
+                  Keys.jobProgress(event.jobId),
+                  Math.min(100, Math.max(0, n)),
+                  'EX',
+                  JOB_STATE_TTL_S
+                );
               },
+
               log: async (msg: string) => {
-                await redis.rpush(RedisKeys.jobLogs(event.jobId), `[${new Date().toISOString()}] ${msg}`);
-                await redis.expire(RedisKeys.jobLogs(event.jobId), RedisTTL.JOB_STATE);
+                const line = `[${new Date().toISOString()}] ${msg}`;
+                await redis.rpush(Keys.jobLogs(event.jobId), line);
+                await redis.expire(Keys.jobLogs(event.jobId), JOB_STATE_TTL_S);
               },
             };
 
             try {
               const result = await handler(ctx);
-              await redis.set(RedisKeys.jobState(event.jobId), 'completed', 'EX', RedisTTL.JOB_STATE);
-              await produceMessage<JobCompletedEvent>(Topics.JOB_COMPLETED, {
-                jobId: event.jobId, workerId, result, completedAt: new Date().toISOString(),
-                workflowId: event.workflowId, stepId: event.stepId,
-              }, event.jobId);
+
+              await redis.set(Keys.jobState(event.jobId), 'completed', 'EX', JOB_STATE_TTL_S);
+              await producer.send({
+                topic:       Topics.JOB_COMPLETED,
+                compression: CompressionTypes.GZIP,
+                messages: [{
+                  key:   event.jobId,
+                  value: JSON.stringify({
+                    jobId:       event.jobId,
+                    workerId,
+                    result,
+                    completedAt: new Date().toISOString(),
+                    workflowId:  event.workflowId,
+                    stepId:      event.stepId,
+                  }),
+                }],
+              });
+
             } catch (err: unknown) {
-              const errorMessage = err instanceof Error ? err.message : String(err);
-              await redis.set(RedisKeys.jobState(event.jobId), 'failed', 'EX', RedisTTL.JOB_STATE);
-              await produceMessage<JobFailedEvent>(Topics.JOB_FAILED, {
-                jobId: event.jobId, workerId, error: errorMessage,
-                attempt: event.attempt, maxAttempts: event.maxAttempts,
-                workflowId: event.workflowId, stepId: event.stepId,
-              }, event.jobId);
+              const error = err instanceof Error ? err.message : String(err);
+
+              await redis.set(Keys.jobState(event.jobId), 'failed', 'EX', JOB_STATE_TTL_S);
+              await producer.send({
+                topic:       Topics.JOB_FAILED,
+                compression: CompressionTypes.GZIP,
+                messages: [{
+                  key:   event.jobId,
+                  value: JSON.stringify({
+                    jobId:       event.jobId,
+                    workerId,
+                    error,
+                    attempt:     event.attempt,
+                    maxAttempts: event.maxAttempts,
+                    workflowId:  event.workflowId,
+                    stepId:      event.stepId,
+                  }),
+                }],
+              });
             }
-          });
+
+          } finally {
+            await lock.release().catch(() => {
+              // Lock may have expired — safe to ignore
+            });
+          }
+
         } catch {
-          // Lock not acquired — another worker handling this job
+          // Could not acquire lock — another worker instance is handling this job
         }
       },
     });
+  }
+
+  /**
+   * Gracefully disconnect Kafka consumer/producer and Redis clients.
+   * Call this on SIGTERM / SIGINT.
+   */
+  async stop(): Promise<void> {
+    await this.consumer?.disconnect();
+    await this.producer?.disconnect();
+    await this.redisMain?.quit();
+    await this.redisLock?.quit();
   }
 }
