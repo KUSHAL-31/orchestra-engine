@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '@node-forge-engine/prisma';
+import { prisma, type Job } from '@node-forge-engine/prisma';
 import { produceMessage, Topics } from '@node-forge-engine/kafka';
 import { redis, RedisKeys } from '@node-forge-engine/redis';
 import type { SubmitJobRequest, JobSubmittedEvent } from '@node-forge-engine/types';
@@ -13,12 +13,17 @@ export async function jobRoutes(server: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+
+    const progressValues = await Promise.all(
+      jobs.map((job: Job) => redis.get(RedisKeys.jobProgress(job.id)))
+    );
+
     return reply.send(
-      jobs.map((job) => ({
+      jobs.map((job: Job, i: number) => ({
         id: job.id,
         type: job.type,
         status: job.status.toLowerCase(),
-        progress: 0,
+        progress: progressValues[i] ? parseInt(progressValues[i]!, 10) : 0,
         attempts: job.attempts,
         maxAttempts: job.maxAttempts,
         result: job.result,

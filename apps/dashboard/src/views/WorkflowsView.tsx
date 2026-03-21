@@ -48,7 +48,7 @@ export function WorkflowsView() {
                 <tr key={wf.id}>
                   <td>
                     <Link to={`/workflows/${wf.id}`} className="id-link">
-                      {wf.id.slice(0, 8)}…
+                      {wf.id}
                     </Link>
                   </td>
                   <td style={{ fontWeight: 500 }}>{wf.name}</td>
