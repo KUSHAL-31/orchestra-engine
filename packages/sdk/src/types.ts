@@ -81,6 +81,40 @@ export interface WorkflowStatus {
   completedAt: string | null;
 }
 
+export type CreateScheduleOptions =
+  | {
+      /** Human-readable name for this schedule */
+      name: string;
+      type: 'cron';
+      /** Standard 5-part cron expression, e.g. "0 8 * * *" */
+      cronExpr: string;
+      /** Job type to submit on each tick */
+      jobType: string;
+      /** Payload passed to the job handler */
+      payload?: Record<string, unknown>;
+    }
+  | {
+      name: string;
+      type: 'one_shot';
+      /** ISO 8601 datetime — fires once at this exact time */
+      runAt: string;
+      jobType: string;
+      payload?: Record<string, unknown>;
+    };
+
+export interface ScheduleStatus {
+  id: string;
+  name: string;
+  type: 'CRON' | 'ONE_SHOT';
+  cronExpr: string | null;
+  runAt: string | null;
+  nextRunAt: string;
+  jobType: string;
+  payload: Record<string, unknown>;
+  active: boolean;
+  createdAt: string;
+}
+
 // ─── Worker (server-side) ─────────────────────────────────────────────────────
 
 export interface WorkerOptions {
