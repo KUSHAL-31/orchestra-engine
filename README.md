@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](infra/docker-compose.yml)
 
-Submit background jobs, chain them into multi-step workflows, schedule them with cron, and observe everything in real time — via a **typed Node.js SDK**, a clean REST API, or a live dashboard. One `docker compose up` to run the entire stack.
+Orchestra Engine is a self-hostable background job and workflow engine built for teams that want full control over how async work gets done. You define job handlers in your existing Node.js services, submit work through a typed SDK or REST API, and Orchestra takes care of the rest — Kafka-backed queuing, distributed locking so no job runs twice, automatic retries with configurable backoff, and real-time progress streaming. When a single job isn't enough, you compose steps into multi-step workflows with explicit dependencies and parallel execution groups, so complex pipelines like order processing or report generation run in exactly the right order without you managing the coordination. Recurring work is handled through a built-in cron scheduler with full audit history. Everything — running jobs, workflow state, dead-letter failures, worker heartbeats, scheduled triggers — is visible in a live dashboard that updates over SSE without polling. The entire stack is Postgres for durability, Kafka for messaging, Redis for locking, and your own worker processes for execution: no vendor lock-in, no managed service dependency, runs wherever you can run containers.
 
 ---
 
