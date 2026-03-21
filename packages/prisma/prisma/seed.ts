@@ -4,7 +4,7 @@ import crypto from 'crypto';
 const prisma = new PrismaClient();
 
 async function main() {
-  const rawKey = process.env.API_KEY_SEED ?? 'forge-dev-api-key-12345';
+  const rawKey = process.env.API_KEY_SEED ?? 'orchestra-dev-api-key-12345';
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 
   await prisma.apiKey.upsert({

@@ -1,6 +1,6 @@
-# node-forge-engine
+# orchestra-engine
 
-Node.js SDK for [Node Forge Engine](https://github.com/KUSHAL-31/node-forge-engine) — a self-hosted background job engine with Kafka, Redis, and a real-time dashboard.
+Node.js SDK for [Orchestra Engine](https://github.com/KUSHAL-31/orchestra-engine) — a self-hosted background job engine with Kafka, Redis, and a real-time dashboard.
 
 Install the SDK in your existing backend to:
 - Submit jobs and workflows to the engine from any Node.js service
@@ -9,25 +9,25 @@ Install the SDK in your existing backend to:
 ## Requirements
 
 - Node.js >= 20.0.0
-- A running Forge Engine stack (API + Kafka + Redis) — see the [main repo](https://github.com/KUSHAL-31/node-forge-engine) for setup
+- A running Orchestra Engine stack (API + Kafka + Redis) — see the [main repo](https://github.com/KUSHAL-31/orchestra-engine) for setup
 
 ## Installation
 
 ```bash
-npm install node-forge-engine
+npm install orchestra-engine
 ```
 
 ---
 
 ## JobEngine — Submit jobs from your backend
 
-Use `JobEngine` to submit jobs and workflows from any existing service. It talks to the Forge Engine REST API over HTTP — no Kafka or Redis connection needed on the client side.
+Use `JobEngine` to submit jobs and workflows from any existing service. It talks to the Orchestra Engine REST API over HTTP — no Kafka or Redis connection needed on the client side.
 
 ```typescript
-import { JobEngine } from 'node-forge-engine';
+import { JobEngine } from 'orchestra-engine';
 
 const engine = new JobEngine({
-  apiUrl: 'http://localhost:3000',  // your Forge Engine API URL
+  apiUrl: 'http://localhost:3000',  // your Orchestra Engine API URL
   apiKey: 'your-api-key',
 });
 ```
@@ -144,7 +144,7 @@ await engine.resumeWorkflow(workflowId);
 Use `Worker` to run a worker process inside your own repo. It connects to Kafka and Redis, consumes jobs, and calls your handler functions.
 
 ```typescript
-import { Worker } from 'node-forge-engine';
+import { Worker } from 'orchestra-engine';
 
 const worker = new Worker();
 
@@ -201,8 +201,8 @@ Whatever a handler returns becomes `job.result`. If it throws, the job fails and
 | `redisHost` | `string` | `'localhost'` | Redis host |
 | `redisPort` | `number` | `6379` | Redis port |
 | `redisPassword` | `string` | — | Redis password (if auth enabled) |
-| `groupId` | `string` | `'forge-sdk-workers'` | Kafka consumer group ID |
-| `clientId` | `string` | `'forge-engine-sdk-worker'` | Kafka client ID |
+| `groupId` | `string` | `'orchestra-sdk-workers'` | Kafka consumer group ID |
+| `clientId` | `string` | `'orchestra-engine-sdk-worker'` | Kafka client ID |
 
 ---
 

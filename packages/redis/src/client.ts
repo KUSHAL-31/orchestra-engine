@@ -14,10 +14,10 @@ function createRedisClient(name: string): Redis {
 }
 
 // Main client — for general operations
-export const redis = createRedisClient('forge-main');
+export const redis = createRedisClient('orchestra-main');
 
 // Separate subscriber client — ioredis subscriber clients cannot run other commands
-export const redisSubscriber = createRedisClient('forge-sub');
+export const redisSubscriber = createRedisClient('orchestra-sub');
 
 // Redlock requires its own client instances
-export const redlockClients = [createRedisClient('forge-lock')];
+export const redlockClients = [createRedisClient('orchestra-lock')];

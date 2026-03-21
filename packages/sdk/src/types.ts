@@ -1,7 +1,7 @@
 // ─── JobEngine (client-side) ──────────────────────────────────────────────────
 
 export interface JobEngineOptions {
-  /** Base URL of the Forge Engine API, e.g. 'http://localhost:3000' */
+  /** Base URL of the Orchestra Engine API, e.g. 'http://localhost:3000' */
   apiUrl: string;
   /** API key — sent as Bearer token on every request */
   apiKey: string;
@@ -126,9 +126,9 @@ export interface WorkerOptions {
   redisPort?: number;
   /** Redis password if auth is enabled */
   redisPassword?: string;
-  /** Kafka consumer group ID (default: 'forge-sdk-workers') */
+  /** Kafka consumer group ID (default: 'orchestra-sdk-workers') */
   groupId?: string;
-  /** Kafka client ID (default: 'forge-engine-sdk-worker') */
+  /** Kafka client ID (default: 'orchestra-engine-sdk-worker') */
   clientId?: string;
 }
 

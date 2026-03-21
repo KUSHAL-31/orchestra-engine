@@ -30,7 +30,7 @@ export class JobEngine {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error(
-        `ForgeEngine API error [${res.status}]: ${(err as Record<string, string>).error}`
+        `OrchestraEngine API error [${res.status}]: ${(err as Record<string, string>).error}`
       );
     }
 

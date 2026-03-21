@@ -16,12 +16,12 @@ const RUN_INTEGRATION = process.env.TEST_INTEGRATION === 'true';
 
   beforeAll(async () => {
     // Initialize real connections
-    const { JobEngine } = await import('@node-forge-engine/sdk');
-    const { Worker } = await import('@node-forge-engine/sdk');
+    const { JobEngine } = await import('@orchestra-engine/sdk');
+    const { Worker } = await import('@orchestra-engine/sdk');
 
     engine = new JobEngine({
       apiUrl: process.env.API_BASE_URL ?? 'http://localhost:3000',
-      apiKey: process.env.API_KEY ?? 'forge-dev-api-key-12345',
+      apiKey: process.env.API_KEY ?? 'orchestra-dev-api-key-12345',
     });
 
     worker = new Worker();

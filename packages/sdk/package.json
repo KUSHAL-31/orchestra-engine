@@ -1,7 +1,7 @@
 {
-  "name": "node-forge-engine",
+  "name": "orchestra-engine",
   "version": "1.0.0",
-  "description": "SDK for Node Forge Engine — submit jobs, run workers, and trigger workflows from any Node.js backend",
+  "description": "SDK for Node Orchestra Engine — submit jobs, run workers, and trigger workflows from any Node.js backend",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -27,7 +27,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/KUSHAL-31/node-forge-engine"
+    "url": "https://github.com/KUSHAL-31/orchestra-engine"
   },
   "dependencies": {
     "kafkajs": "^2.2.4",

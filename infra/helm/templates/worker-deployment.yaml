@@ -6,11 +6,11 @@ spec:
   replicas: {{ .Values.worker.replicaCount }}
   selector:
     matchLabels:
-      app: forge-worker
+      app: orchestra-worker
   template:
     metadata:
       labels:
-        app: forge-worker
+        app: orchestra-worker
     spec:
       containers:
         - name: worker

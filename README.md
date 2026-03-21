@@ -1,4 +1,4 @@
-# Forge Engine
+# Orchestra Engine
 
 > A self-hostable, open-source **Distributed Job Scheduler & Workflow Engine** built in TypeScript.
 
@@ -16,8 +16,8 @@ Submit background jobs, chain them into multi-step workflows, schedule them with
 **Prerequisites:** Docker + Docker Compose
 
 ```bash
-git clone https://github.com/KUSHAL-31/node-forge-engine.git
-cd node-forge-engine
+git clone https://github.com/KUSHAL-31/orchestra-engine.git
+cd orchestra-engine
 docker compose -f infra/docker-compose.yml up -d
 ```
 
@@ -33,7 +33,7 @@ curl http://localhost:3000/health
 # {"status":"ok","service":"api"}
 ```
 
-> The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `forge-dev-api-key-12345`.
+> The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `orchestra-dev-api-key-12345`.
 
 ---
 
@@ -122,13 +122,13 @@ stateDiagram-v2
 Install the SDK in your Node.js project:
 
 ```bash
-npm install @node-forge-engine/sdk
+npm install @orchestra-engine/sdk
 ```
 
 ### Submit a Job
 
 ```typescript
-import { JobEngine } from '@node-forge-engine/sdk';
+import { JobEngine } from '@orchestra-engine/sdk';
 
 const engine = new JobEngine({
   apiUrl: process.env.API_BASE_URL,   // e.g. http://localhost:3000
@@ -158,10 +158,10 @@ console.log(job.result);    // { sent: true }
 
 ### Register a Worker
 
-Register handlers for each job type your service processes. Forge Engine handles Kafka consumption, distributed locking, retries, and progress streaming — you just write the function.
+Register handlers for each job type your service processes. Orchestra Engine handles Kafka consumption, distributed locking, retries, and progress streaming — you just write the function.
 
 ```typescript
-import { Worker } from '@node-forge-engine/sdk';
+import { Worker } from '@orchestra-engine/sdk';
 
 const worker = new Worker();
 
@@ -329,15 +329,15 @@ await engine.deleteSchedule(scheduleId);
 If you're not using the SDK, every feature is available over HTTP. Load your env vars once:
 
 ```bash
-export FORGE_KEY=$(grep API_KEY_SEED .env | cut -d '=' -f2)
-export FORGE_URL="http://localhost:3000"
+export ORCHESTRA_KEY=$(grep API_KEY_SEED .env | cut -d '=' -f2)
+export ORCHESTRA_URL="http://localhost:3000"
 ```
 
 ### Submit a Job
 
 ```bash
-curl -X POST $FORGE_URL/jobs \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/jobs \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "send-email",
@@ -352,8 +352,8 @@ curl -X POST $FORGE_URL/jobs \
 ### Submit a Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/workflows \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "order-pipeline",
@@ -376,8 +376,8 @@ curl -X POST $FORGE_URL/workflows \
 ### Create a Cron Schedule
 
 ```bash
-curl -X POST $FORGE_URL/schedules \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/schedules \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "daily-report",
@@ -392,23 +392,23 @@ curl -X POST $FORGE_URL/schedules \
 
 ```bash
 # List dead-lettered jobs
-curl $FORGE_URL/dlq \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl $ORCHESTRA_URL/dlq \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 
 # Replay as a fresh attempt (attempt counter reset to 0)
-curl -X POST $FORGE_URL/dlq/{id}/replay \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X POST $ORCHESTRA_URL/dlq/{id}/replay \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 
 # Delete permanently
-curl -X DELETE $FORGE_URL/dlq/{id} \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X DELETE $ORCHESTRA_URL/dlq/{id} \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 ```
 
 ### Resume a Failed Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows/{workflowId}/resume \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X POST $ORCHESTRA_URL/workflows/{workflowId}/resume \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 ```
 
 Completed steps are not re-run. Only failed and pending steps are retried from where the workflow left off.
@@ -486,7 +486,7 @@ React SPA at `http://localhost:5173`. Connects to the SSE stream on load — all
 ## Project Structure
 
 ```
-node-forge-engine/
+orchestra-engine/
 ├── apps/
 │   ├── api/            # Fastify REST API + SSE + Kafka consumers
 │   ├── orchestrator/   # Workflow state machine and step resolver
@@ -516,7 +516,7 @@ Register a handler in `apps/worker/src/handlers/` and add it to the handlers Map
 The Kafka consumer group rebalances and the message is re-delivered to another worker. The Redlock TTL (30s) expires, so the new worker acquires the lock and executes the job without duplication.
 
 **What happens if Kafka goes down?**
-Forge Engine writes to Postgres before producing to Kafka. The job record already exists and can be requeued on Kafka recovery. Postgres is always the source of truth.
+Orchestra Engine writes to Postgres before producing to Kafka. The job record already exists and can be requeued on Kafka recovery. Postgres is always the source of truth.
 
 **Can I run multiple worker instances?**
 Yes. Kafka consumer groups distribute jobs across replicas automatically. Redlock ensures only one worker executes a given job at a time.

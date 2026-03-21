@@ -1,9 +1,9 @@
-import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
-import { prisma } from '@node-forge-engine/prisma';
-import { withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
+import { kafka, Topics, produceMessage } from '@orchestra-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { withLock, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
 import { computeBackoffMs } from '../lib/backoff';
-import { writeAuditLog } from '@node-forge-engine/prisma';
-import type { JobFailedEvent, JobRetryEvent, JobDlqEvent, WorkflowStepDoneEvent, JobSubmittedEvent } from '@node-forge-engine/types';
+import { writeAuditLog } from '@orchestra-engine/prisma';
+import type { JobFailedEvent, JobRetryEvent, JobDlqEvent, WorkflowStepDoneEvent, JobSubmittedEvent } from '@orchestra-engine/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function startJobFailedConsumer() {

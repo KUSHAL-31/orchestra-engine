@@ -1,9 +1,9 @@
-import { kafka, Topics, produceMessage } from '@node-forge-engine/kafka';
-import { prisma } from '@node-forge-engine/prisma';
-import { redis, withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
-import type { JobCompletedEvent, JobSubmittedEvent, WorkflowCompletedEvent, WorkflowStepDoneEvent } from '@node-forge-engine/types';
+import { kafka, Topics, produceMessage } from '@orchestra-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { redis, withLock, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
+import type { JobCompletedEvent, JobSubmittedEvent, WorkflowCompletedEvent, WorkflowStepDoneEvent } from '@orchestra-engine/types';
 import { resolveReadySteps } from '../lib/step-resolver';
-import { writeAuditLog } from '@node-forge-engine/prisma';
+import { writeAuditLog } from '@orchestra-engine/prisma';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function startJobCompletedConsumer() {

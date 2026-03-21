@@ -5,24 +5,24 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: forge-postgres
+    container_name: orchestra-postgres
     environment:
-      POSTGRES_USER: forge
-      POSTGRES_PASSWORD: forge
-      POSTGRES_DB: forge_engine
+      POSTGRES_USER: orchestra
+      POSTGRES_PASSWORD: orchestra
+      POSTGRES_DB: orchestra_engine
     ports:
       - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U forge']
+      test: ['CMD-SHELL', 'pg_isready -U orchestra']
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: forge-redis
+    container_name: orchestra-redis
     ports:
       - '6379:6379'
     command: redis-server --appendonly yes
@@ -36,14 +36,14 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
-    container_name: forge-zookeeper
+    container_name: orchestra-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
-    container_name: forge-kafka
+    container_name: orchestra-kafka
     depends_on:
       - zookeeper
     ports:
@@ -70,7 +70,7 @@ services:
       dockerfile: infra/dockerfiles/Dockerfile.api
     command: sh -c "cd packages/prisma && npx prisma db push --accept-data-loss && TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' npx ts-node --skip-project prisma/seed.ts"
     environment:
-      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      DATABASE_URL: postgresql://orchestra:orchestra@postgres:5432/orchestra_engine
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,13 +79,13 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.api
-    container_name: forge-api
+    container_name: orchestra-api
     ports:
       - '3000:3000'
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      DATABASE_URL: postgresql://orchestra:orchestra@postgres:5432/orchestra_engine
       KAFKA_BROKERS: kafka:29092
       REDIS_HOST: redis
       API_PORT: '3000'
@@ -103,11 +103,11 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.orchestrator
-    container_name: forge-orchestrator
+    container_name: orchestra-orchestrator
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      DATABASE_URL: postgresql://orchestra:orchestra@postgres:5432/orchestra_engine
       KAFKA_BROKERS: kafka:29092
       REDIS_HOST: redis
     depends_on:
@@ -120,7 +120,7 @@ services:
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      DATABASE_URL: postgresql://orchestra:orchestra@postgres:5432/orchestra_engine
       KAFKA_BROKERS: kafka:29092
       REDIS_HOST: redis
     depends_on:
@@ -132,11 +132,11 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.scheduler
-    container_name: forge-scheduler
+    container_name: orchestra-scheduler
     env_file:
       - ../.env
     environment:
-      DATABASE_URL: postgresql://forge:forge@postgres:5432/forge_engine
+      DATABASE_URL: postgresql://orchestra:orchestra@postgres:5432/orchestra_engine
       KAFKA_BROKERS: kafka:29092
       REDIS_HOST: redis
       API_BASE_URL: http://api:3000
@@ -147,7 +147,7 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.dashboard
-    container_name: forge-dashboard
+    container_name: orchestra-dashboard
     ports:
       - '5173:80'
     depends_on:
@@ -155,11 +155,11 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: forge-kafka-ui
+    container_name: orchestra-kafka-ui
     ports:
       - '8080:8080'
     environment:
-      KAFKA_CLUSTERS_0_NAME: forge
+      KAFKA_CLUSTERS_0_NAME: orchestra
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     depends_on:
       - kafka

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '@node-forge-engine/prisma';
-import { produceMessage, Topics } from '@node-forge-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { produceMessage, Topics } from '@orchestra-engine/kafka';
 
 export async function dlqRoutes(server: FastifyInstance) {
 

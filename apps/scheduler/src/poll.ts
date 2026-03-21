@@ -1,14 +1,14 @@
-import { prisma } from '@node-forge-engine/prisma';
-import { withLock, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
-import { produceMessage, Topics } from '@node-forge-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { withLock, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
+import { produceMessage, Topics } from '@orchestra-engine/kafka';
 import { getNextCronDate } from './cron-utils';
-import { createLogger } from '@node-forge-engine/types';
-import type { ScheduleTickEvent } from '@node-forge-engine/types';
+import { createLogger } from '@orchestra-engine/types';
+import type { ScheduleTickEvent } from '@orchestra-engine/types';
 
 const logger = createLogger('scheduler:poll');
 
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000';
-const INTERNAL_API_KEY = process.env.API_KEY_SEED ?? 'forge-dev-api-key-12345';
+const INTERNAL_API_KEY = process.env.API_KEY_SEED ?? 'orchestra-dev-api-key-12345';
 
 export async function runSchedulerPoll(): Promise<void> {
   // RULE: Acquire Redis lock BEFORE polling — INVARIANT-005

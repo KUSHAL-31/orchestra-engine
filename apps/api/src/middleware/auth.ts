@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
-import { prisma } from '@node-forge-engine/prisma';
-import { redis, RedisKeys, RedisTTL } from '@node-forge-engine/redis';
+import { prisma } from '@orchestra-engine/prisma';
+import { redis, RedisKeys, RedisTTL } from '@orchestra-engine/redis';
 
 const EXEMPT_PATHS = ['/health'];
 
@@ -41,7 +41,7 @@ export async function authHook(request: FastifyRequest, reply: FastifyReply) {
     return reply.code(429).send({ error: 'Rate limit exceeded' });
   }
 
-  // Update last_used_at (fire-and-forget for performance)
+  // Update last_used_at (fire-and-orchestrat for performance)
   prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
 
   // Attach apiKeyId to request for downstream use

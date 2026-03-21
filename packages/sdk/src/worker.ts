@@ -86,12 +86,12 @@ export class Worker {
 
     redlock.on('error', (err: Error) => {
       if (!err.message.includes('quorum')) {
-        console.error('[forge-engine-sdk] redlock error:', err.message);
+        console.error('[orchestra-engine-sdk] redlock error:', err.message);
       }
     });
 
     const kafka = new Kafka({
-      clientId: options.clientId ?? 'forge-engine-sdk-worker',
+      clientId: options.clientId ?? 'orchestra-engine-sdk-worker',
       brokers:  options.kafkaBrokers,
       logLevel: logLevel.WARN,
       retry:    { initialRetryTime: 300, retries: 10 },
@@ -101,7 +101,7 @@ export class Worker {
     await this.producer.connect();
 
     this.consumer = kafka.consumer({
-      groupId: options.groupId ?? 'forge-sdk-workers',
+      groupId: options.groupId ?? 'orchestra-sdk-workers',
     });
     await this.consumer.connect();
     await this.consumer.subscribe({

@@ -1,9 +1,9 @@
 import 'dotenv/config';
-import { initKafkaTopics } from '@node-forge-engine/kafka';
-import { redis } from '@node-forge-engine/redis';
+import { initKafkaTopics } from '@orchestra-engine/kafka';
+import { redis } from '@orchestra-engine/redis';
 import { startWorkerConsumer } from './consumer';
 import { registerWorker, startHeartbeat, deregisterWorker } from './heartbeat';
-import { createLogger } from '@node-forge-engine/types';
+import { createLogger } from '@orchestra-engine/types';
 import { JobHandler } from './context';
 
 // ─── Register your job handlers here ─────────────────────────────────────────

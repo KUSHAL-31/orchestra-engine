@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-const API_KEY = import.meta.env.VITE_API_KEY ?? 'forge-dev-api-key-12345';
+const API_KEY = import.meta.env.VITE_API_KEY ?? 'orchestra-dev-api-key-12345';
 
 const headers = {
   'Content-Type': 'application/json',

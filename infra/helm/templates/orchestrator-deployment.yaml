@@ -6,11 +6,11 @@ spec:
   replicas: {{ .Values.orchestrator.replicaCount }}
   selector:
     matchLabels:
-      app: forge-orchestrator
+      app: orchestra-orchestrator
   template:
     metadata:
       labels:
-        app: forge-orchestrator
+        app: orchestra-orchestrator
     spec:
       containers:
         - name: orchestrator

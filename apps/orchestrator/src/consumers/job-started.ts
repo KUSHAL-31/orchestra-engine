@@ -1,7 +1,7 @@
-import { kafka, Topics } from '@node-forge-engine/kafka';
-import { prisma } from '@node-forge-engine/prisma';
-import { writeAuditLog } from '@node-forge-engine/prisma';
-import type { JobStartedEvent } from '@node-forge-engine/types';
+import { kafka, Topics } from '@orchestra-engine/kafka';
+import { prisma } from '@orchestra-engine/prisma';
+import { writeAuditLog } from '@orchestra-engine/prisma';
+import type { JobStartedEvent } from '@orchestra-engine/types';
 
 export async function startJobStartedConsumer() {
   const consumer = kafka.consumer({

@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-api
 spec:
   selector:
-    app: forge-api
+    app: orchestra-api
   ports:
     - port: {{ .Values.api.port }}
       targetPort: {{ .Values.api.port }}

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: node-forge-engine
+name: orchestra-engine
 description: Distributed Job Scheduler & Workflow Engine
 type: application
 version: 0.1.0
