@@ -7,7 +7,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](infra/docker-compose.yml)
 
-Orchestra Engine is a self-hostable background job and workflow engine built for teams that want full control over how async work gets done. You define job handlers in your existing Node.js services, submit work through a typed SDK or REST API, and Orchestra takes care of the rest — Kafka-backed queuing, distributed locking so no job runs twice, automatic retries with configurable backoff, and real-time progress streaming. When a single job isn't enough, you compose steps into multi-step workflows with explicit dependencies and parallel execution groups, so complex pipelines like order processing or report generation run in exactly the right order without you managing the coordination. Recurring work is handled through a built-in cron scheduler with full audit history. Everything — running jobs, workflow state, dead-letter failures, worker heartbeats, scheduled triggers — is visible in a live dashboard that updates over SSE without polling. The entire stack is Postgres for durability, Kafka for messaging, Redis for locking, and your own worker processes for execution: no vendor lock-in, no managed service dependency, runs wherever you can run containers.
+Most teams end up duct-taping background jobs together with ad-hoc queues, scattered cron scripts, and zero visibility into what's running or failing. Orchestra Engine replaces all of that with a single, coherent system your entire team can reason about.
+
+- **Background jobs that just work** — submit a job from anywhere via the typed Node.js SDK or REST API. Orchestra handles Kafka-backed queuing, distributed locking so the same job never runs twice, and automatic retries with configurable backoff. You write the handler function; it takes care of the rest.
+
+- **Workflows without the coordination tax** — instead of building your own state machines or chaining promises across services, you declare steps with explicit `dependsOn` and `parallelGroup` relationships. Orchestra executes them in order, fans out parallel branches automatically, and fans back in before proceeding — so a pipeline like validate → charge → [notify warehouse + update inventory] → send receipt becomes a single JSON definition, not 300 lines of glue code.
+
+- **Cron scheduling with history** — register recurring jobs with cron expressions and get a full audit trail of every trigger, execution result, and failure. No more silent cron jobs disappearing into the void.
+
+- **Full observability out of the box** — a live dashboard shows every job, workflow, worker heartbeat, and dead-letter failure updating in real time over SSE. You can see progress mid-execution, inspect logs and error traces, replay failed jobs from the DLQ, and pause or delete schedules — all without touching a database or writing a query.
+
+- **Your infrastructure, your rules** — Postgres for durability, Kafka for messaging, Redis for distributed locking, your own worker processes for execution. No vendor lock-in, no managed service to pay for, no data leaving your environment. Runs wherever containers run.
 
 ---
 
