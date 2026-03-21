@@ -269,6 +269,479 @@ Workers send a heartbeat every 30 seconds. If a worker misses enough heartbeats,
 
 ---
 
+## REST API Examples (CURL)
+
+All examples use the dev API key seeded automatically on first boot. Set it once as a shell variable:
+
+```bash
+export FORGE_KEY="forge-dev-api-key-12345"
+export FORGE_URL="http://localhost:3000"
+```
+
+---
+
+### 1. Health Check
+
+```bash
+curl $FORGE_URL/health
+```
+
+**Response:**
+```json
+{ "status": "ok", "service": "api" }
+```
+
+---
+
+### 2. Submit a Simple Job
+
+Fire-and-forget. The job is queued immediately and a worker picks it up.
+
+```bash
+curl -X POST $FORGE_URL/jobs \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send-email",
+    "payload": {
+      "to": "user@example.com",
+      "subject": "Hello from Forge!",
+      "body": "Your account is ready."
+    }
+  }'
+```
+
+**Response:**
+```json
+{ "jobId": "4029e1c0-..." }
+```
+
+**Flow:**
+```
+POST /jobs → Postgres (PENDING) → Kafka job.submitted → Worker → job.completed
+```
+
+---
+
+### 3. Job with Retries, Backoff, Priority and Delay
+
+```bash
+curl -X POST $FORGE_URL/jobs \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "charge-payment",
+    "payload": {
+      "orderId": "ORD-100",
+      "amount": 149.99
+    },
+    "retries": 5,
+    "backoff": "exponential",
+    "priority": "high",
+    "delay": 3000
+  }'
+```
+
+**What each field does:**
+- `retries: 5` — up to 5 attempts before the job is dead-lettered
+- `backoff: "exponential"` — wait time doubles after each failure (1s → 2s → 4s → 8s …)
+- `priority: "high"` — picked up before `normal` and `low` jobs
+- `delay: 3000` — waits 3 seconds before the first attempt
+
+**Flow:**
+```
+POST /jobs → Postgres (PENDING, delayMs=3000) → Kafka job.submitted
+  → Worker waits 3s → attempt 1 fails → retry after 2s
+  → attempt 2 fails → retry after 4s
+  → attempt 3 succeeds → job.completed
+```
+
+---
+
+### 4. Idempotent Job Submission
+
+Safe to call multiple times — always returns the same `jobId`. Useful for retrying a failed HTTP request without duplicating work.
+
+```bash
+curl -X POST $FORGE_URL/jobs \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send-email",
+    "payload": {
+      "to": "user@example.com",
+      "subject": "Welcome aboard!"
+    },
+    "idempotencyKey": "welcome-email-user-42"
+  }'
+```
+
+Call it again with the same `idempotencyKey` — you get the same `jobId` back and the job is **not** duplicated.
+
+---
+
+### 5. Poll Job Status
+
+```bash
+curl $FORGE_URL/jobs/{jobId} \
+  -H "Authorization: Bearer $FORGE_KEY"
+```
+
+**Response:**
+```json
+{
+  "id": "4029e1c0-...",
+  "type": "send-email",
+  "status": "completed",
+  "progress": 100,
+  "attempts": 1,
+  "maxAttempts": 3,
+  "result": { "sent": true },
+  "logs": [
+    "[2026-03-21T11:00:00Z] Sending email to user@example.com",
+    "[2026-03-21T11:00:01Z] Email sent: \"Welcome aboard!\""
+  ]
+}
+```
+
+---
+
+### 6. Sequential Workflow (dependsOn)
+
+Steps run one after another. Each step only starts once all steps in its `dependsOn` list have completed successfully.
+
+```bash
+curl -X POST $FORGE_URL/workflows \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "order-processing",
+    "steps": [
+      {
+        "name": "validate-order",
+        "type": "validate-order",
+        "payload": { "orderId": "ORD-200" }
+      },
+      {
+        "name": "charge-payment",
+        "type": "charge-payment",
+        "payload": { "orderId": "ORD-200", "amount": 89.99 },
+        "dependsOn": ["validate-order"]
+      },
+      {
+        "name": "send-confirmation",
+        "type": "send-email",
+        "payload": {
+          "to": "customer@example.com",
+          "subject": "Order ORD-200 Confirmed",
+          "body": "Your payment was successful!"
+        },
+        "dependsOn": ["charge-payment"]
+      }
+    ]
+  }'
+```
+
+**Flow:**
+```
+validate-order → charge-payment → send-confirmation
+```
+
+If `charge-payment` fails and exhausts all retries, the workflow stops. `send-confirmation` is never submitted.
+
+---
+
+### 7. Parallel Fan-out / Fan-in (parallelGroup + dependsOn)
+
+Steps sharing the same `parallelGroup` value are submitted simultaneously. A downstream step whose `dependsOn` lists all parallel steps won't start until every one of them completes — this is the fan-in.
+
+```bash
+curl -X POST $FORGE_URL/workflows \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "post-payment-parallel",
+    "steps": [
+      {
+        "name": "charge-payment",
+        "type": "charge-payment",
+        "payload": { "orderId": "ORD-300", "amount": 199.99 }
+      },
+      {
+        "name": "notify-warehouse",
+        "type": "notify-warehouse",
+        "payload": { "orderId": "ORD-300" },
+        "dependsOn": ["charge-payment"],
+        "parallelGroup": "post-payment"
+      },
+      {
+        "name": "update-inventory",
+        "type": "update-inventory",
+        "payload": { "orderId": "ORD-300" },
+        "dependsOn": ["charge-payment"],
+        "parallelGroup": "post-payment"
+      },
+      {
+        "name": "send-receipt",
+        "type": "send-email",
+        "payload": {
+          "to": "customer@example.com",
+          "subject": "Your receipt for ORD-300",
+          "body": "Thank you for your order!"
+        },
+        "dependsOn": ["notify-warehouse", "update-inventory"]
+      }
+    ]
+  }'
+```
+
+**Flow:**
+```
+                charge-payment
+                      │
+         ┌────────────┴────────────┐
+  notify-warehouse         update-inventory
+  [parallelGroup]          [parallelGroup]
+         └────────────┬────────────┘
+                 send-receipt
+                 (fan-in: waits for both)
+```
+
+The orchestrator uses a Redis atomic counter per `parallelGroup`. When both parallel steps complete, the counter hits the group size and `send-receipt` is released.
+
+---
+
+### 8. Full Pipeline — Sequential + Parallel + onFailure
+
+A complete order pipeline: validation, payment, three parallel fulfillment steps, a final confirmation, and an ops alert if anything fails permanently.
+
+```bash
+curl -X POST $FORGE_URL/workflows \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "full-order-pipeline",
+    "steps": [
+      {
+        "name": "validate-order",
+        "type": "validate-order",
+        "payload": { "orderId": "ORD-400" }
+      },
+      {
+        "name": "charge-payment",
+        "type": "charge-payment",
+        "payload": { "orderId": "ORD-400", "amount": 299.99 },
+        "dependsOn": ["validate-order"]
+      },
+      {
+        "name": "notify-warehouse",
+        "type": "notify-warehouse",
+        "payload": { "orderId": "ORD-400" },
+        "dependsOn": ["charge-payment"],
+        "parallelGroup": "fulfillment"
+      },
+      {
+        "name": "update-inventory",
+        "type": "update-inventory",
+        "payload": { "orderId": "ORD-400" },
+        "dependsOn": ["charge-payment"],
+        "parallelGroup": "fulfillment"
+      },
+      {
+        "name": "generate-report",
+        "type": "generate-report",
+        "payload": { "orderId": "ORD-400", "format": "pdf" },
+        "dependsOn": ["charge-payment"],
+        "parallelGroup": "fulfillment"
+      },
+      {
+        "name": "send-confirmation",
+        "type": "send-email",
+        "payload": {
+          "to": "customer@example.com",
+          "subject": "Order ORD-400 is on its way!",
+          "body": "All systems confirmed. Thank you!"
+        },
+        "dependsOn": ["notify-warehouse", "update-inventory", "generate-report"]
+      }
+    ],
+    "onFailure": {
+      "type": "send-email",
+      "payload": {
+        "to": "ops@company.com",
+        "subject": "Order ORD-400 pipeline failed",
+        "body": "Manual intervention required."
+      }
+    }
+  }'
+```
+
+**Flow:**
+```
+validate-order
+      │
+charge-payment
+      │
+┌─────┴─────────────────────┬──────────────────┐
+notify-warehouse      update-inventory    generate-report
+[fulfillment]          [fulfillment]      [fulfillment]
+└─────┬─────────────────────┴──────────────────┘
+      │
+send-confirmation
+
+Any step fails permanently → onFailure: send-email (ops alert)
+```
+
+---
+
+### 9. Resume a Failed Workflow
+
+Completed steps are **not** re-run. Only failed and pending steps are reset and retried from where the workflow left off.
+
+```bash
+# List workflows to find the failed one
+curl $FORGE_URL/workflows \
+  -H "Authorization: Bearer $FORGE_KEY"
+
+# Resume it
+curl -X POST $FORGE_URL/workflows/{workflowId}/resume \
+  -H "Authorization: Bearer $FORGE_KEY"
+```
+
+---
+
+### 10. Create a Cron Schedule
+
+Submits a job on a recurring schedule. The distributed scheduler lock (`lock:scheduler:tick`) ensures exactly one job fires per tick across all replicas.
+
+```bash
+curl -X POST $FORGE_URL/schedules \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "daily-sales-report",
+    "type": "cron",
+    "cronExpr": "0 8 * * *",
+    "jobType": "generate-report",
+    "payload": { "format": "pdf", "scope": "daily" }
+  }'
+```
+
+`0 8 * * *` fires every day at 08:00. The scheduler polls every minute, acquires `lock:scheduler:tick` in Redis (55s TTL), fires all due schedules, then releases the lock. Even with 10 scheduler replicas, only one fires per tick.
+
+---
+
+### 11. Create a One-Shot Schedule
+
+Fires exactly once at a specific datetime, then becomes inactive.
+
+```bash
+curl -X POST $FORGE_URL/schedules \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "black-friday-campaign",
+    "type": "one_shot",
+    "runAt": "2026-11-27T00:00:00Z",
+    "jobType": "send-email",
+    "payload": {
+      "to": "subscribers@company.com",
+      "subject": "Black Friday Sale is LIVE!",
+      "body": "50% off everything. Today only."
+    }
+  }'
+```
+
+---
+
+### 12. Pause, Reactivate and Delete a Schedule
+
+```bash
+# Pause — stops firing, keeps the record
+curl -X PATCH $FORGE_URL/schedules/{scheduleId} \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "active": false }'
+
+# Reactivate
+curl -X PATCH $FORGE_URL/schedules/{scheduleId} \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "active": true }'
+
+# Delete permanently
+curl -X DELETE $FORGE_URL/schedules/{scheduleId} \
+  -H "Authorization: Bearer $FORGE_KEY"
+```
+
+---
+
+### 13. Dead Letter Queue — Inspect, Replay and Delete
+
+```bash
+# List all dead-lettered jobs
+curl $FORGE_URL/dlq \
+  -H "Authorization: Bearer $FORGE_KEY"
+
+# Replay as a fresh first attempt (attempt counter reset to 0)
+curl -X POST $FORGE_URL/dlq/{jobId}/replay \
+  -H "Authorization: Bearer $FORGE_KEY"
+
+# Delete permanently once resolved
+curl -X DELETE $FORGE_URL/dlq/{jobId} \
+  -H "Authorization: Bearer $FORGE_KEY"
+```
+
+Replayed jobs appear immediately in the Jobs list and go through the full execution pipeline again with the original payload.
+
+---
+
+### End-to-End Flow Summary
+
+```
+Client
+  │
+  ├─ POST /jobs ──────────────────────────────────────────────────────────────┐
+  │                                                                            │
+  │   API:    write Postgres (PENDING) → produce Kafka job.submitted          │
+  │   Worker: consume → acquire Redlock → execute handler                     │
+  │           → ctx.progress() stored in Redis                                │
+  │           → ctx.log()      stored in Redis                                │
+  │           → produce job.completed                                         │
+  │   API consumer: forward to Redis pub/sub → SSE push to dashboard          │
+  │   Orchestrator: UPDATE Postgres (status, result, completedAt)             │
+  │                                                                            │
+  └─ GET /jobs/:id ← reads Postgres + Redis (progress, logs) ─────────────────┘
+
+  ├─ POST /workflows ─────────────────────────────────────────────────────────┐
+  │                                                                            │
+  │   API:          write Postgres (workflow + steps) → produce workflow.created
+  │   Orchestrator: resolve ready steps (no unmet dependsOn)                  │
+  │                 → produce job.submitted for each ready step               │
+  │                 → on job.completed: check if dependsOn now satisfied      │
+  │                 → parallelGroup fan-in: Redis INCR counter                │
+  │                   when counter == group size → release downstream step    │
+  │                 → all steps done → mark workflow COMPLETED                │
+  │                 → any step dead → mark workflow FAILED → submit onFailure │
+  │                                                                            │
+  └────────────────────────────────────────────────────────────────────────────┘
+
+  └─ POST /schedules ─────────────────────────────────────────────────────────┐
+                                                                               │
+      Scheduler: poll Postgres every minute                                    │
+                 → acquire lock:scheduler:tick in Redis (55s TTL)             │
+                 → find all schedules where nextRunAt <= now                  │
+                 → POST /jobs for each due schedule                           │
+                 → advance nextRunAt (cron) or deactivate (one_shot)         │
+                 → release lock                                               │
+                                                                               │
+      One scheduler fires per tick regardless of replica count                │
+                                                                               │
+      └──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## SDK Usage
 
 ### Submit a standalone job
