@@ -329,15 +329,15 @@ await engine.deleteSchedule(scheduleId);
 If you're not using the SDK, every feature is available over HTTP. Load your env vars once:
 
 ```bash
-export FORGE_KEY=$(grep API_KEY_SEED .env | cut -d '=' -f2)
-export FORGE_URL="http://localhost:3000"
+export ORCHESTRA_KEY=$(grep API_KEY_SEED .env | cut -d '=' -f2)
+export ORCHESTRA_URL="http://localhost:3000"
 ```
 
 ### Submit a Job
 
 ```bash
-curl -X POST $FORGE_URL/jobs \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/jobs \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "send-email",
@@ -352,8 +352,8 @@ curl -X POST $FORGE_URL/jobs \
 ### Submit a Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/workflows \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "order-pipeline",
@@ -376,8 +376,8 @@ curl -X POST $FORGE_URL/workflows \
 ### Create a Cron Schedule
 
 ```bash
-curl -X POST $FORGE_URL/schedules \
-  -H "Authorization: Bearer $FORGE_KEY" \
+curl -X POST $ORCHESTRA_URL/schedules \
+  -H "Authorization: Bearer $ORCHESTRA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "daily-report",
@@ -392,23 +392,23 @@ curl -X POST $FORGE_URL/schedules \
 
 ```bash
 # List dead-lettered jobs
-curl $FORGE_URL/dlq \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl $ORCHESTRA_URL/dlq \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 
 # Replay as a fresh attempt (attempt counter reset to 0)
-curl -X POST $FORGE_URL/dlq/{id}/replay \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X POST $ORCHESTRA_URL/dlq/{id}/replay \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 
 # Delete permanently
-curl -X DELETE $FORGE_URL/dlq/{id} \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X DELETE $ORCHESTRA_URL/dlq/{id} \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 ```
 
 ### Resume a Failed Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows/{workflowId}/resume \
-  -H "Authorization: Bearer $FORGE_KEY"
+curl -X POST $ORCHESTRA_URL/workflows/{workflowId}/resume \
+  -H "Authorization: Bearer $ORCHESTRA_KEY"
 ```
 
 Completed steps are not re-run. Only failed and pending steps are retried from where the workflow left off.
