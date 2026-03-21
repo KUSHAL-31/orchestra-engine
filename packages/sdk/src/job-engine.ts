@@ -4,6 +4,8 @@ import type {
   SubmitWorkflowOptions,
   JobStatus,
   WorkflowStatus,
+  CreateScheduleOptions,
+  ScheduleStatus,
 } from './types';
 
 export class JobEngine {
@@ -66,6 +68,26 @@ export class JobEngine {
   /** Resume a failed workflow from the failed step. */
   async resumeWorkflow(workflowId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>('POST', `/workflows/${workflowId}/resume`);
+  }
+
+  /** Create a cron or one-shot schedule. */
+  async createSchedule(options: CreateScheduleOptions): Promise<ScheduleStatus> {
+    return this.request<ScheduleStatus>('POST', '/schedules', options);
+  }
+
+  /** List all schedules. */
+  async listSchedules(): Promise<ScheduleStatus[]> {
+    return this.request<ScheduleStatus[]>('GET', '/schedules');
+  }
+
+  /** Pause or reactivate a schedule. */
+  async updateSchedule(scheduleId: string, patch: { active: boolean }): Promise<ScheduleStatus> {
+    return this.request<ScheduleStatus>('PATCH', `/schedules/${scheduleId}`, patch);
+  }
+
+  /** Delete a schedule permanently. */
+  async deleteSchedule(scheduleId: string): Promise<void> {
+    await this.request<void>('DELETE', `/schedules/${scheduleId}`);
   }
 
 }
