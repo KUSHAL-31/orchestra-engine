@@ -33,7 +33,7 @@ curl http://localhost:3000/health
 # {"status":"ok","service":"api"}
 ```
 
-> The dev API key `forge-dev-api-key-12345` is seeded automatically on first boot.
+> The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `forge-dev-api-key-12345`.
 
 ---
 
@@ -131,8 +131,8 @@ npm install @node-forge-engine/sdk
 import { JobEngine } from '@node-forge-engine/sdk';
 
 const engine = new JobEngine({
-  apiUrl: 'http://localhost:3000',
-  apiKey: 'forge-dev-api-key-12345',
+  apiUrl: process.env.API_BASE_URL,   // e.g. http://localhost:3000
+  apiKey: process.env.API_KEY_SEED,   // set in your .env file
 });
 
 const { jobId } = await engine.submitJob({
@@ -326,52 +326,89 @@ await engine.deleteSchedule(scheduleId);
 
 ## REST API
 
-If you're not using the SDK, every feature is available over HTTP. Set headers once:
+If you're not using the SDK, every feature is available over HTTP. Load your env vars once:
 
 ```bash
-export FORGE_KEY="forge-dev-api-key-12345"
+export FORGE_KEY=$(grep API_KEY_SEED .env | cut -d '=' -f2)
 export FORGE_URL="http://localhost:3000"
 ```
 
 ### Submit a Job
 
 ```bash
-curl -X POST $FORGE_URL/jobs -H "Authorization: Bearer $FORGE_KEY" -H "Content-Type: application/json" \
-  -d '{"type":"send-email","payload":{"to":"user@example.com","subject":"Hello"},"retries":3,"backoff":"exponential","priority":"high"}'
+curl -X POST $FORGE_URL/jobs \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send-email",
+    "payload": { "to": "user@example.com", "subject": "Hello" },
+    "retries": 3,
+    "backoff": "exponential",
+    "priority": "high"
+  }'
 # {"jobId":"4029e1c0-..."}
 ```
 
 ### Submit a Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows -H "Authorization: Bearer $FORGE_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"order-pipeline","steps":[{"name":"validate","type":"validate-order","payload":{"orderId":"ORD-1"}},{"name":"charge","type":"charge-payment","payload":{"orderId":"ORD-1","amount":99},"dependsOn":["validate"]}]}'
+curl -X POST $FORGE_URL/workflows \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "order-pipeline",
+    "steps": [
+      {
+        "name": "validate",
+        "type": "validate-order",
+        "payload": { "orderId": "ORD-1" }
+      },
+      {
+        "name": "charge",
+        "type": "charge-payment",
+        "payload": { "orderId": "ORD-1", "amount": 99 },
+        "dependsOn": ["validate"]
+      }
+    ]
+  }'
 ```
 
 ### Create a Cron Schedule
 
 ```bash
-curl -X POST $FORGE_URL/schedules -H "Authorization: Bearer $FORGE_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"daily-report","type":"cron","cronExpr":"0 8 * * *","jobType":"generate-report","payload":{"format":"pdf"}}'
+curl -X POST $FORGE_URL/schedules \
+  -H "Authorization: Bearer $FORGE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "daily-report",
+    "type": "cron",
+    "cronExpr": "0 8 * * *",
+    "jobType": "generate-report",
+    "payload": { "format": "pdf" }
+  }'
 ```
 
-### DLQ — Replay or Delete
+### DLQ — Inspect, Replay and Delete
 
 ```bash
 # List dead-lettered jobs
-curl $FORGE_URL/dlq -H "Authorization: Bearer $FORGE_KEY"
+curl $FORGE_URL/dlq \
+  -H "Authorization: Bearer $FORGE_KEY"
 
-# Replay as a fresh attempt
-curl -X POST $FORGE_URL/dlq/{id}/replay -H "Authorization: Bearer $FORGE_KEY"
+# Replay as a fresh attempt (attempt counter reset to 0)
+curl -X POST $FORGE_URL/dlq/{id}/replay \
+  -H "Authorization: Bearer $FORGE_KEY"
 
 # Delete permanently
-curl -X DELETE $FORGE_URL/dlq/{id} -H "Authorization: Bearer $FORGE_KEY"
+curl -X DELETE $FORGE_URL/dlq/{id} \
+  -H "Authorization: Bearer $FORGE_KEY"
 ```
 
 ### Resume a Failed Workflow
 
 ```bash
-curl -X POST $FORGE_URL/workflows/{workflowId}/resume -H "Authorization: Bearer $FORGE_KEY"
+curl -X POST $FORGE_URL/workflows/{workflowId}/resume \
+  -H "Authorization: Bearer $FORGE_KEY"
 ```
 
 Completed steps are not re-run. Only failed and pending steps are retried from where the workflow left off.
@@ -430,16 +467,19 @@ React SPA at `http://localhost:5173`. Connects to the SSE stream on load — all
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | TypeScript 5 / Node.js 20 |
-| API | Fastify |
-| Message Bus | Apache Kafka (KafkaJS) |
-| Distributed Locks | Redis + Redlock |
-| Database | PostgreSQL (Prisma) |
-| Dashboard | React + Vite |
-| Monorepo | Turborepo |
-| Deployment | Docker Compose / Kubernetes + Helm |
+| Component | Technology | Why |
+|-----------|------------|-----|
+| Language | TypeScript 5 / Node.js 20 | Single language across all services |
+| API Framework | Fastify | Lower overhead than Express; built-in JSON schema validation |
+| Message Bus | Apache Kafka (KafkaJS) | Consumer groups for load balancing; event retention for replay; multiple services consume the same events independently |
+| Distributed Locks | Redis + Redlock | Fast cross-process mutex; handles horizontal scale correctly; lock expiry prevents deadlocks on worker crash |
+| Job State Cache | Redis (ioredis) | Sub-millisecond reads for progress and logs without hitting Postgres on every poll |
+| Pub/Sub (SSE) | Redis pub/sub | Push job events to dashboard SSE clients instantly when state changes |
+| Database | PostgreSQL (Prisma) | ACID guarantees; durable source of truth; relational step dependency resolution |
+| Dashboard | React + Vite | SPA with SSE-driven live updates; no server-side rendering needed |
+| Monorepo | Turborepo | Parallel builds; shared packages compiled once and reused across all services |
+| Local Dev | Docker Compose | One command to run entire stack including all infrastructure |
+| Production | Kubernetes + Helm | Independent scaling per service; HPA for workers based on Kafka consumer lag |
 
 ---
 
