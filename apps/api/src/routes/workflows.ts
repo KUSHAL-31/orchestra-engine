@@ -6,21 +6,26 @@ import type { SubmitWorkflowRequest, WorkflowCreatedEvent } from '@orchestra-eng
 
 export async function workflowRoutes(server: FastifyInstance) {
 
-  // GET /workflows — List all workflows (most recent first)
-  server.get('/workflows', async (_req, reply) => {
-    const workflows = await prisma.workflow.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
-    return reply.send(
-      workflows.map((w) => ({
+  // GET /workflows — List workflows with pagination (?limit=50&offset=0)
+  server.get<{ Querystring: { limit?: string; offset?: string } }>('/workflows', async (request, reply) => {
+    const limit  = Math.min(Math.max(parseInt(request.query.limit  ?? '50', 10), 1), 2000);
+    const offset = Math.max(parseInt(request.query.offset ?? '0', 10), 0);
+
+    const [workflows, total] = await Promise.all([
+      prisma.workflow.findMany({ orderBy: { createdAt: 'desc' }, take: limit, skip: offset }),
+      prisma.workflow.count(),
+    ]);
+
+    return reply.send({
+      data: workflows.map((w) => ({
         id: w.id,
         name: w.name,
         status: w.status.toLowerCase(),
         createdAt: w.createdAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
-      }))
-    );
+      })),
+      total,
+    });
   });
 
   // POST /workflows — Submit a workflow
