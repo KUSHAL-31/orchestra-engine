@@ -41,4 +41,17 @@ export const api = {
       workflows: { total: number; completed: number; failed: number; running: number; pending: number };
     }>('GET', `/analytics/stats?${params}`);
   },
+  getAnalyticsCharts: (range = '24H') =>
+    request<{
+      timeseries:        Array<{ bucket: string; created: number; completed: number; failed: number }>;
+      durationByType:    Array<{ type: string; avgMs: number }>;
+      topFailingTypes:   Array<{ type: string; failures: number }>;
+      retryDistribution: Array<{ label: string; count: number }>;
+      hourlyActivity:    Array<{ hour: string; count: number }>;
+      jobTypeVolume:     Array<{ type: string; count: number }>;
+      recentFailures:    Array<{ id: string; type: string; status: string; error: string | null; createdAt: string }>;
+      performance:       { p50: number; p95: number; p99: number; avg: number };
+      retryRate:         number;
+      uniqueTypes:       number;
+    }>('GET', `/analytics/charts?range=${range}`),
 };
