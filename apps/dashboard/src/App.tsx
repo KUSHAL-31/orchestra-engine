@@ -8,6 +8,7 @@ import { WorkflowDetailView } from './views/WorkflowDetailView';
 import { SchedulesView } from './views/SchedulesView';
 import { DLQView } from './views/DLQView';
 import { WorkersView } from './views/WorkersView';
+import { AnalyticsView } from './views/AnalyticsView';
 import { useSSE } from './hooks/useSSE';
 
 export function App() {
@@ -27,6 +28,7 @@ export function App() {
             <Route path="/schedules" element={<SchedulesView />} />
             <Route path="/dlq" element={<DLQView />} />
             <Route path="/workers" element={<WorkersView />} />
+            <Route path="/analytics" element={<AnalyticsView />} />
           </Routes>
         </main>
       </div>
