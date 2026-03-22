@@ -461,6 +461,46 @@ React SPA at `http://localhost:5173`. Connects to the SSE stream on load — all
 | **Dead Letter Queue** | `/dlq` | Jobs that exhausted all retries. Expand for full error history. Replay or delete entries directly. |
 | **Workers** | `/workers` | Registered worker instances with heartbeat status and which job types each one handles. |
 
+### Screenshots
+
+**Analytics — KPI Overview**
+
+The Analytics view opens with a live-updating header row of key metrics: total jobs processed, success rate, average duration, active workers, jobs running now, and jobs waiting in queue. Below the KPIs, a time-series chart plots completed, created, and failed jobs over the selected window. The live feed ticker at the top scrolls incoming job events in real time.
+
+![Analytics KPI Overview](images/Screenshot%202026-03-22%20at%2018.51.14.png)
+
+---
+
+**Analytics — Performance Metrics & Workers**
+
+Scrolling down on the Analytics view reveals latency percentiles (P50 / P75 / P99), throughput, error rate, retry rate, and the busiest hour of the day. The **Job Type Volume** bar chart ranks job types by activity. The **Workers** panel lists every registered worker instance, its heartbeat status (alive / offline), and the full set of job types it handles — two workers are shown here, each covering `send-email`, `generate-report`, `validate-order`, `charge-payment`, `update-inventory`, and `notify-warehouse`.
+
+![Analytics Performance Metrics and Workers](images/Screenshot%202026-03-22%20at%2018.51.23.png)
+
+---
+
+**Workflows List**
+
+The Workflows view shows all submitted workflows in a sortable table with their IDs, names, status badges, and created / completed timestamps. All three workflows shown — `full-order-processing`, `parallel-report`, and `order-processing` — completed successfully within a few seconds of submission.
+
+![Workflows List](images/Screenshot%202026-03-22%20at%2018.51.33.png)
+
+---
+
+**Jobs List**
+
+The Jobs view lists every job with its UUID, type, status badge, progress bar, attempt count, and creation timestamp. Filter tabs at the top let you narrow by lifecycle state: `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `RETRYING`, `DEAD`, or `SKIPPED`. The screenshot shows a fully completed run across multiple job types — `send-email`, `generate-report`, `notify-warehouse`, `update-inventory`, and `charge-payment` — all at 100 % progress.
+
+![Jobs List](images/Screenshot%202026-03-22%20at%2018.51.40.png)
+
+---
+
+**Workflow Detail — Step Graph**
+
+Clicking a workflow opens its detail view. The **Step Graph** at the top renders the dependency chain as a visual pipeline — each node shows its step name and a `COMPLETED` badge once done. The `full-order-processing` workflow pictured runs six steps in order: `validate → charge → update-inventory → notify-warehouse → generate-invoice → send-confirmation`. The steps table below lists each step's ID, name, job type, the step it depends on, its parallel group (if any), and the exact execution timestamp.
+
+![Workflow Detail Step Graph](images/Screenshot%202026-03-22%20at%2018.51.49.png)
+
 ---
 
 ## Features
