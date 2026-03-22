@@ -316,29 +316,33 @@ export function AnalyticsView() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [dlq, setDlq] = useState<DLQEntry[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [totalJobsInDb, setTotalJobsInDb] = useState(0);
-  const [totalWorkflowsInDb, setTotalWorkflowsInDb] = useState(0);
+  const [dbStats, setDbStats] = useState<{
+    jobs:      { total: number; completed: number; failed: number; running: number; pending: number; retrying: number };
+    workflows: { total: number; completed: number; failed: number; running: number; pending: number };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Fetch chart sample + workers/DLQ + DB-accurate counts — refreshes every 30s
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        const [j, w, d, wf] = await Promise.all([
+        const from = getStartDate(timeRange).toISOString();
+        const [j, w, d, wf, s] = await Promise.all([
           api.getJobs(2000, 0),
           api.getWorkers(),
           api.getDLQ(),
           api.getWorkflows(2000, 0),
+          api.getAnalyticsStats(from),
         ]);
         if (!cancelled) {
           setJobs((j.data as Job[]) || []);
-          setTotalJobsInDb(j.total ?? 0);
           setWorkers((w as Worker[]) || []);
           setDlq((d as DLQEntry[]) || []);
           setWorkflows((wf.data as Workflow[]) || []);
-          setTotalWorkflowsInDb(wf.total ?? 0);
+          setDbStats(s);
           setLastUpdated(new Date());
         }
       } catch (e) {
@@ -351,7 +355,7 @@ export function AnalyticsView() {
     load();
     const interval = setInterval(load, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+  }, [timeRange]);
 
   /* ─── Filtered jobs by time range ───────────────────────────── */
   const filteredJobs = useMemo(() => {
@@ -498,14 +502,14 @@ export function AnalyticsView() {
       <div className="kpi-grid">
         <KpiCard
           label="Total Jobs"
-          value={totalJobsInDb.toLocaleString()}
-          sub={`${stats.throughput} jobs/hr`}
+          value={(dbStats?.jobs.total ?? stats.total).toLocaleString()}
+          sub={`${stats.throughput} jobs/hr avg`}
           accent="primary"
         />
         <KpiCard
           label="Success Rate"
-          value={`${stats.successRate}%`}
-          sub={`${stats.completed.toLocaleString()} completed`}
+          value={dbStats ? `${pct(dbStats.jobs.completed, dbStats.jobs.total)}%` : `${stats.successRate}%`}
+          sub={`${(dbStats?.jobs.completed ?? stats.completed).toLocaleString()} completed`}
           accent={stats.successRate >= 90 ? 'success' : stats.successRate >= 70 ? 'warning' : 'danger'}
         />
         <KpiCard
@@ -521,8 +525,8 @@ export function AnalyticsView() {
         />
         <KpiCard
           label="Running Now"
-          value={stats.running}
-          sub={`${stats.pending} queued`}
+          value={(dbStats?.jobs.running ?? stats.running).toLocaleString()}
+          sub={`${(dbStats?.jobs.pending ?? stats.pending).toLocaleString()} queued`}
           accent="cyan"
         />
         <KpiCard
@@ -533,14 +537,14 @@ export function AnalyticsView() {
         />
         <KpiCard
           label="Total Workflows"
-          value={totalWorkflowsInDb.toLocaleString()}
-          sub={`${workflowStats.running} running`}
+          value={(dbStats?.workflows.total ?? workflowStats.total).toLocaleString()}
+          sub={`${(dbStats?.workflows.running ?? workflowStats.running)} running`}
           accent="purple"
         />
         <KpiCard
           label="Workflow Success"
-          value={`${workflowStats.successRate}%`}
-          sub={`${workflowStats.completed} completed`}
+          value={dbStats ? `${pct(dbStats.workflows.completed, dbStats.workflows.total)}%` : `${workflowStats.successRate}%`}
+          sub={`${(dbStats?.workflows.completed ?? workflowStats.completed)} completed`}
           accent={workflowStats.total === 0 ? undefined : workflowStats.successRate >= 90 ? 'success' : workflowStats.successRate >= 70 ? 'warning' : 'danger'}
         />
       </div>
