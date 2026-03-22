@@ -7,24 +7,34 @@ import {
   format, subHours, subDays, formatDistanceToNow,
 } from 'date-fns';
 import { api } from '../api/client';
-import type { Job, Worker, DLQEntry, Workflow } from '../api/types';
-import { useJobStore } from '../store/jobs';
+import type { Worker, DLQEntry } from '../api/types';
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type TimeRange = '1H' | '6H' | '24H' | '7D' | '30D';
-
-interface BucketPoint {
-  label: string;
-  created: number;
-  completed: number;
-  failed: number;
-}
 
 interface StatusCount {
   name: string;
   value: number;
   fill: string;
 }
+
+type DbStats = {
+  jobs:      { total: number; completed: number; failed: number; running: number; pending: number; retrying: number };
+  workflows: { total: number; completed: number; failed: number; running: number; pending: number };
+};
+
+type ChartData = {
+  timeseries:        Array<{ bucket: string; created: number; completed: number; failed: number }>;
+  durationByType:    Array<{ type: string; avgMs: number }>;
+  topFailingTypes:   Array<{ type: string; failures: number }>;
+  retryDistribution: Array<{ label: string; count: number }>;
+  hourlyActivity:    Array<{ hour: string; count: number }>;
+  jobTypeVolume:     Array<{ type: string; count: number }>;
+  recentFailures:    Array<{ id: string; type: string; status: string; error: string | null; createdAt: string }>;
+  performance:       { p50: number; p95: number; p99: number; avg: number };
+  retryRate:         number;
+  uniqueTypes:       number;
+};
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const TIME_RANGES: TimeRange[] = ['1H', '6H', '24H', '7D', '30D'];
@@ -46,12 +56,6 @@ function pct(num: number, total: number): number {
   return total > 0 ? Math.round((num / total) * 100) : 0;
 }
 
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  const idx = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
-}
-
 function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max) + '…' : str;
 }
@@ -67,177 +71,15 @@ function getStartDate(range: TimeRange): Date {
   }
 }
 
-function bucketJobs(jobs: Job[], range: TimeRange): BucketPoint[] {
-  const now = new Date();
-  const start = getStartDate(range);
-  let bucketMs: number;
-  let labelFn: (d: Date) => string;
-
+function formatBucketLabel(bucket: string, range: TimeRange): string {
+  const d = new Date(bucket);
   switch (range) {
-    case '1H':  bucketMs = 5 * 60 * 1000;       labelFn = d => format(d, 'HH:mm'); break;
-    case '6H':  bucketMs = 30 * 60 * 1000;      labelFn = d => format(d, 'HH:mm'); break;
-    case '24H': bucketMs = 60 * 60 * 1000;      labelFn = d => format(d, 'HH:00'); break;
-    case '7D':  bucketMs = 24 * 60 * 60 * 1000; labelFn = d => format(d, 'MMM d'); break;
-    case '30D': bucketMs = 24 * 60 * 60 * 1000; labelFn = d => format(d, 'MMM d'); break;
+    case '1H':
+    case '6H':  return format(d, 'HH:mm');
+    case '24H': return format(d, 'HH:00');
+    case '7D':
+    case '30D': return format(d, 'MMM d');
   }
-
-  // Pre-generate all buckets so chart is never sparse
-  const buckets = new Map<number, BucketPoint>();
-  let t = Math.floor(start.getTime() / bucketMs) * bucketMs;
-  while (t <= now.getTime()) {
-    buckets.set(t, { label: labelFn(new Date(t)), created: 0, completed: 0, failed: 0 });
-    t += bucketMs;
-  }
-
-  for (const job of jobs) {
-    const ts = new Date(job.createdAt).getTime();
-    if (ts < start.getTime()) continue;
-    const key = Math.floor(ts / bucketMs) * bucketMs;
-    const bucket = buckets.get(key);
-    if (bucket) {
-      bucket.created++;
-      if (job.status === 'completed') bucket.completed++;
-      if (job.status === 'failed' || job.status === 'dead') bucket.failed++;
-    }
-  }
-
-  return Array.from(buckets.values());
-}
-
-function computeDurationByType(jobs: Job[]): { type: string; avgMs: number }[] {
-  const map = new Map<string, number[]>();
-  for (const job of jobs) {
-    if (job.startedAt && job.completedAt) {
-      const dur = new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime();
-      if (dur > 0) {
-        if (!map.has(job.type)) map.set(job.type, []);
-        map.get(job.type)!.push(dur);
-      }
-    }
-  }
-  return Array.from(map.entries())
-    .map(([type, durs]) => ({ type, avgMs: durs.reduce((a, b) => a + b, 0) / durs.length }))
-    .sort((a, b) => b.avgMs - a.avgMs)
-    .slice(0, 8);
-}
-
-function computeRetryDistribution(jobs: Job[]): { label: string; count: number }[] {
-  const counts = new Map<number, number>();
-  for (const job of jobs) {
-    const a = job.attempts ?? 0;
-    counts.set(a, (counts.get(a) || 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([attempts, count]) => ({ label: `${attempts}x`, count }));
-}
-
-function computeTopJobTypes(jobs: Job[]): { type: string; count: number; rate: number }[] {
-  const counts = new Map<string, number>();
-  for (const job of jobs) counts.set(job.type, (counts.get(job.type) || 0) + 1);
-  const max = counts.size > 0 ? Math.max(...counts.values()) : 1;
-  return Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([type, count]) => ({ type, count, rate: count / max }));
-}
-
-function computeTopFailingTypes(jobs: Job[]): { type: string; failures: number }[] {
-  const map = new Map<string, number>();
-  for (const job of jobs) {
-    if (job.status === 'failed' || job.status === 'dead') {
-      map.set(job.type, (map.get(job.type) || 0) + 1);
-    }
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([type, failures]) => ({ type, failures }));
-}
-
-function computeHourlyActivity(jobs: Job[]): { hour: string; count: number }[] {
-  const counts = new Array(24).fill(0);
-  for (const job of jobs) counts[new Date(job.createdAt).getHours()]++;
-  return counts.map((count, h) => ({ hour: `${String(h).padStart(2, '0')}:00`, count }));
-}
-
-function computePeakHour(jobs: Job[]): { hour: number; count: number } {
-  const counts = new Array(24).fill(0);
-  for (const job of jobs) counts[new Date(job.createdAt).getHours()]++;
-  const max = Math.max(...counts);
-  return { hour: counts.indexOf(max), count: max };
-}
-
-/* ─── Live Feed Ticker ───────────────────────────────────────── */
-const FEED_STATUS_COLORS: Record<string, string> = {
-  completed: '#4ade80',
-  failed:    '#f87171',
-  running:   '#60a5fa',
-  retrying:  '#fbbf24',
-  dead:      '#64748b',
-  pending:   '#94a3b8',
-};
-
-interface FeedEvent {
-  id: string;
-  jobType: string;
-  status: string;
-  ts: Date;
-}
-
-function LiveFeedTicker() {
-  const [events, setEvents] = useState<FeedEvent[]>([]);
-  const storeJobs = useJobStore(s => s.jobs);
-  const prevStatusRef = React.useRef<Map<string, string>>(new Map());
-  const mountedRef = React.useRef(false);
-  const trackRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!mountedRef.current) {
-      // Snapshot initial state — don't fire events for already-existing jobs
-      storeJobs.forEach((job, id) => prevStatusRef.current.set(id, job.status));
-      mountedRef.current = true;
-      return;
-    }
-
-    storeJobs.forEach((job, id) => {
-      const prev = prevStatusRef.current.get(id);
-      // Only fire when an already-known job changes status (SSE-driven update)
-      if (prev !== undefined && prev !== job.status) {
-        setEvents(evs => [{
-          id: `${id}-${Date.now()}`,
-          jobType: job.type || 'job',
-          status: job.status,
-          ts: new Date(),
-        }, ...evs].slice(0, 40));
-        if (trackRef.current) trackRef.current.scrollLeft = 0;
-      }
-      prevStatusRef.current.set(id, job.status);
-    });
-  }, [storeJobs]);
-
-  return (
-    <div className={`live-feed${events.length === 0 ? ' live-feed--empty' : ''}`}>
-      <div className="live-feed-badge">
-        <span className="live-feed-pulse" />
-        LIVE
-      </div>
-      {events.length === 0 ? (
-        <span className="live-feed-idle">Listening for job events…</span>
-      ) : (
-        <div className="live-feed-track" ref={trackRef}>
-          {events.map(ev => (
-            <div key={ev.id} className="live-feed-event">
-              <span className="live-feed-dot" style={{ background: FEED_STATUS_COLORS[ev.status] ?? '#64748b' }} />
-              <span className="live-feed-type">{ev.jobType}</span>
-              <span className="live-feed-status">{ev.status}</span>
-              <span className="live-feed-time">{formatDistanceToNow(ev.ts, { addSuffix: true })}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ─── Custom Tooltip ─────────────────────────────────────────── */
@@ -312,37 +154,31 @@ function ChartEmpty({ icon, text }: { icon: string; text: string }) {
 /* ─── Main View ──────────────────────────────────────────────── */
 export function AnalyticsView() {
   const [timeRange, setTimeRange] = useState<TimeRange>('24H');
-  const [jobs, setJobs] = useState<Job[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [dlq, setDlq] = useState<DLQEntry[]>([]);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [dbStats, setDbStats] = useState<{
-    jobs:      { total: number; completed: number; failed: number; running: number; pending: number; retrying: number };
-    workflows: { total: number; completed: number; failed: number; running: number; pending: number };
-  } | null>(null);
+  const [dbStats, setDbStats] = useState<DbStats | null>(null);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // Fetch chart sample + workers/DLQ + DB-accurate counts — refreshes every 30s
+  // Fetch DB-accurate counts + server-side chart aggregations — refreshes every 30s
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
         const from = getStartDate(timeRange).toISOString();
-        const [j, w, d, wf, s] = await Promise.all([
-          api.getJobs(2000, 0),
+        const [w, d, s, c] = await Promise.all([
           api.getWorkers(),
           api.getDLQ(),
-          api.getWorkflows(2000, 0),
           api.getAnalyticsStats(from),
+          api.getAnalyticsCharts(timeRange),
         ]);
         if (!cancelled) {
-          setJobs((j.data as Job[]) || []);
           setWorkers((w as Worker[]) || []);
           setDlq((d as DLQEntry[]) || []);
-          setWorkflows((wf.data as Workflow[]) || []);
           setDbStats(s);
+          setChartData(c);
           setLastUpdated(new Date());
         }
       } catch (e) {
@@ -357,106 +193,91 @@ export function AnalyticsView() {
     return () => { cancelled = true; clearInterval(interval); };
   }, [timeRange]);
 
-  /* ─── Filtered jobs by time range ───────────────────────────── */
-  const filteredJobs = useMemo(() => {
-    const start = getStartDate(timeRange);
-    return jobs.filter(j => new Date(j.createdAt) >= start);
-  }, [jobs, timeRange]);
+  /* ─── Derived KPI values from DB counts ──────────────────────── */
+  const jobTotal     = dbStats?.jobs.total     ?? 0;
+  const jobCompleted = dbStats?.jobs.completed ?? 0;
+  const jobFailed    = dbStats?.jobs.failed    ?? 0;
+  const jobRunning   = dbStats?.jobs.running   ?? 0;
+  const jobPending   = dbStats?.jobs.pending   ?? 0;
+  const jobRetrying  = dbStats?.jobs.retrying  ?? 0;
+  const wfTotal      = dbStats?.workflows.total     ?? 0;
+  const wfCompleted  = dbStats?.workflows.completed ?? 0;
+  const wfFailed     = dbStats?.workflows.failed    ?? 0;
+  const wfRunning    = dbStats?.workflows.running   ?? 0;
+  const wfPending    = dbStats?.workflows.pending   ?? 0;
 
-  /* ─── Core stats ─────────────────────────────────────────────── */
-  const stats = useMemo(() => {
-    const total     = filteredJobs.length;
-    const completed = filteredJobs.filter(j => j.status === 'completed').length;
-    const failed    = filteredJobs.filter(j => j.status === 'failed' || j.status === 'dead').length;
-    const running   = filteredJobs.filter(j => j.status === 'running').length;
-    const pending   = filteredJobs.filter(j => j.status === 'pending').length;
-    const retrying  = filteredJobs.filter(j => j.status === 'retrying').length;
-    const skipped   = filteredJobs.filter(j => j.status === 'skipped').length;
+  const aliveWorkers = workers.filter(w => w.isAlive).length;
+  const successRate  = pct(jobCompleted, jobTotal);
+  const errorRate    = pct(jobFailed, jobTotal);
+  const wfSuccessRate = pct(wfCompleted, wfTotal);
+  const throughput   = RANGE_HOURS[timeRange] > 0
+    ? (jobTotal / RANGE_HOURS[timeRange]).toFixed(1)
+    : '0';
 
-    const successRate = pct(completed, total);
-    const errorRate   = pct(failed, total);
+  const perf = chartData?.performance ?? { p50: 0, p95: 0, p99: 0, avg: 0 };
 
-    const durations = filteredJobs
-      .filter(j => j.startedAt && j.completedAt)
-      .map(j => new Date(j.completedAt!).getTime() - new Date(j.startedAt!).getTime())
-      .filter(d => d > 0)
-      .sort((a, b) => a - b);
+  /* ─── Peak hour from hourly activity ────────────────────────── */
+  const peak = useMemo(() => {
+    const activity = chartData?.hourlyActivity ?? [];
+    if (!activity.length) return { hour: -1, count: 0 };
+    let maxCount = 0, maxHour = -1;
+    activity.forEach((h, i) => {
+      if (h.count > maxCount) { maxCount = h.count; maxHour = i; }
+    });
+    return { hour: maxHour, count: maxCount };
+  }, [chartData]);
 
-    const avgDuration = durations.length > 0
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
-      : 0;
-    const p50 = percentile(durations, 50);
-    const p95 = percentile(durations, 95);
-    const p99 = percentile(durations, 99);
+  /* ─── Status pie counts ──────────────────────────────────────── */
+  const jobStatusCounts = useMemo((): StatusCount[] => [
+    { name: 'Completed', value: jobCompleted, fill: '#4ade80' },
+    { name: 'Failed',    value: jobFailed,    fill: '#f87171' },
+    { name: 'Running',   value: jobRunning,   fill: '#60a5fa' },
+    { name: 'Pending',   value: jobPending,   fill: '#94a3b8' },
+    { name: 'Retrying',  value: jobRetrying,  fill: '#fbbf24' },
+  ].filter(s => s.value > 0), [dbStats]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const aliveWorkers = workers.filter(w => w.isAlive).length;
+  const wfStatusCounts = useMemo((): StatusCount[] => [
+    { name: 'Completed', value: wfCompleted, fill: '#4ade80' },
+    { name: 'Failed',    value: wfFailed,    fill: '#f87171' },
+    { name: 'Running',   value: wfRunning,   fill: '#60a5fa' },
+    { name: 'Pending',   value: wfPending,   fill: '#94a3b8' },
+  ].filter(s => s.value > 0), [dbStats]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const retriedJobs = filteredJobs.filter(j => (j.attempts ?? 0) > 1).length;
-    const retryRate = pct(retriedJobs, total);
-
-    const throughput = RANGE_HOURS[timeRange] > 0
-      ? (total / RANGE_HOURS[timeRange]).toFixed(1)
-      : '0';
-
-    const peak = computePeakHour(filteredJobs);
-
-    const uniqueTypes = new Set(filteredJobs.map(j => j.type)).size;
-
-    const statusCounts: StatusCount[] = [
-      { name: 'Completed', value: completed, fill: '#4ade80' },
-      { name: 'Failed',    value: failed,    fill: '#f87171' },
-      { name: 'Running',   value: running,   fill: '#60a5fa' },
-      { name: 'Pending',   value: pending,   fill: '#94a3b8' },
-      { name: 'Retrying',  value: retrying,  fill: '#fbbf24' },
-      { name: 'Skipped',   value: skipped,   fill: '#64748b' },
-    ].filter(s => s.value > 0);
-
-    return {
-      total, completed, failed, running, pending, retrying,
-      successRate, errorRate, avgDuration, durations,
-      p50, p95, p99, aliveWorkers, retryRate, throughput,
-      peak, uniqueTypes, statusCounts,
-    };
-  }, [filteredJobs, workers, timeRange]);
-
-  /* ─── Workflow stats ─────────────────────────────────────────── */
-  const workflowStats = useMemo(() => {
-    const start = getStartDate(timeRange);
-    const filtered = workflows.filter(w => new Date(w.createdAt) >= start);
-    const total     = filtered.length;
-    const completed = filtered.filter(w => w.status === 'completed').length;
-    const failed    = filtered.filter(w => w.status === 'failed').length;
-    const running   = filtered.filter(w => w.status === 'running').length;
-    const pending   = filtered.filter(w => w.status === 'pending').length;
-    const successRate = pct(completed, total);
-    const statusCounts: StatusCount[] = [
-      { name: 'Completed', value: completed, fill: '#4ade80' },
-      { name: 'Failed',    value: failed,    fill: '#f87171' },
-      { name: 'Running',   value: running,   fill: '#60a5fa' },
-      { name: 'Pending',   value: pending,   fill: '#94a3b8' },
-    ].filter(s => s.value > 0);
-    return { total, completed, failed, running, pending, successRate, statusCounts };
-  }, [workflows, timeRange]);
-
-  /* ─── Chart data ─────────────────────────────────────────────── */
-  const timeSeriesData   = useMemo(() => bucketJobs(filteredJobs, timeRange), [filteredJobs, timeRange]);
-  const durationData     = useMemo(() => computeDurationByType(filteredJobs).map(d => ({ ...d, type: truncate(d.type, 13) })), [filteredJobs]);
-  const retryData        = useMemo(() => computeRetryDistribution(filteredJobs), [filteredJobs]);
-  const topTypes         = useMemo(() => computeTopJobTypes(filteredJobs), [filteredJobs]);
-  const topFailingTypes  = useMemo(() => computeTopFailingTypes(filteredJobs).map(d => ({ ...d, type: truncate(d.type, 13) })), [filteredJobs]);
-  const hourlyActivity   = useMemo(() =>
-    computeHourlyActivity(filteredJobs).map((d, i) => ({
-      ...d,
-      fill: i === computePeakHour(filteredJobs).hour && d.count > 0 ? '#f59e0b' : '#1e3a5f',
+  /* ─── Chart data derived from server response ────────────────── */
+  const timeSeriesData = useMemo(() =>
+    (chartData?.timeseries ?? []).map(b => ({
+      label:     formatBucketLabel(b.bucket, timeRange),
+      created:   b.created,
+      completed: b.completed,
+      failed:    b.failed,
     })),
-  [filteredJobs]);
-  const recentFailures   = useMemo(() =>
-    filteredJobs
-      .filter(j => j.status === 'failed' || j.status === 'dead')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 8),
-    [filteredJobs],
-  );
+  [chartData, timeRange]);
+
+  const durationData = useMemo(() =>
+    (chartData?.durationByType ?? []).map(d => ({ ...d, type: truncate(d.type, 13) })),
+  [chartData]);
+
+  const topFailingTypes = useMemo(() =>
+    (chartData?.topFailingTypes ?? []).map(d => ({ ...d, type: truncate(d.type, 13) })),
+  [chartData]);
+
+  const retryData = chartData?.retryDistribution ?? [];
+
+  const topTypes = useMemo(() => {
+    const vol = chartData?.jobTypeVolume ?? [];
+    if (!vol.length) return [];
+    const max = vol[0].count;
+    return vol.map(t => ({ ...t, rate: max > 0 ? t.count / max : 0 }));
+  }, [chartData]);
+
+  const hourlyActivity = useMemo(() =>
+    (chartData?.hourlyActivity ?? []).map((d, i) => ({
+      ...d,
+      fill: i === peak.hour && d.count > 0 ? '#f59e0b' : '#1e3a5f',
+    })),
+  [chartData, peak]);
+
+  const recentFailures = chartData?.recentFailures ?? [];
 
   if (loading) {
     return (
@@ -479,7 +300,7 @@ export function AnalyticsView() {
         <div>
           <h1 className="page-title">Analytics</h1>
           <div className="analytics-header-sub">
-            {stats.total} jobs in window · refreshed at {format(lastUpdated, 'HH:mm:ss')}
+            {jobTotal.toLocaleString()} jobs in window · refreshed at {format(lastUpdated, 'HH:mm:ss')}
           </div>
         </div>
         <div className="time-range-pills">
@@ -495,38 +316,35 @@ export function AnalyticsView() {
         </div>
       </div>
 
-      {/* ── Live Feed ──────────────────────────────────────────── */}
-      <LiveFeedTicker />
-
       {/* ── KPI Cards ──────────────────────────────────────────── */}
       <div className="kpi-grid">
         <KpiCard
           label="Total Jobs"
-          value={(dbStats?.jobs.total ?? stats.total).toLocaleString()}
-          sub={`${stats.throughput} jobs/hr avg`}
+          value={jobTotal.toLocaleString()}
+          sub={`${throughput} jobs/hr avg`}
           accent="primary"
         />
         <KpiCard
           label="Success Rate"
-          value={dbStats ? `${pct(dbStats.jobs.completed, dbStats.jobs.total)}%` : `${stats.successRate}%`}
-          sub={`${(dbStats?.jobs.completed ?? stats.completed).toLocaleString()} completed`}
-          accent={stats.successRate >= 90 ? 'success' : stats.successRate >= 70 ? 'warning' : 'danger'}
+          value={`${successRate}%`}
+          sub={`${jobCompleted.toLocaleString()} completed`}
+          accent={successRate >= 90 ? 'success' : successRate >= 70 ? 'warning' : 'danger'}
         />
         <KpiCard
           label="Avg Duration"
-          value={formatDuration(stats.avgDuration)}
-          sub={`${stats.durations.length} measured`}
+          value={formatDuration(perf.avg)}
+          sub="mean execution time"
         />
         <KpiCard
           label="Active Workers"
-          value={stats.aliveWorkers}
+          value={aliveWorkers}
           sub={`of ${workers.length} total`}
-          accent={stats.aliveWorkers > 0 ? 'success' : workers.length > 0 ? 'danger' : undefined}
+          accent={aliveWorkers > 0 ? 'success' : workers.length > 0 ? 'danger' : undefined}
         />
         <KpiCard
           label="Running Now"
-          value={(dbStats?.jobs.running ?? stats.running).toLocaleString()}
-          sub={`${(dbStats?.jobs.pending ?? stats.pending).toLocaleString()} queued`}
+          value={jobRunning.toLocaleString()}
+          sub={`${jobPending.toLocaleString()} queued`}
           accent="cyan"
         />
         <KpiCard
@@ -537,15 +355,15 @@ export function AnalyticsView() {
         />
         <KpiCard
           label="Total Workflows"
-          value={(dbStats?.workflows.total ?? workflowStats.total).toLocaleString()}
-          sub={`${(dbStats?.workflows.running ?? workflowStats.running)} running`}
+          value={wfTotal.toLocaleString()}
+          sub={`${wfRunning} running`}
           accent="purple"
         />
         <KpiCard
           label="Workflow Success"
-          value={dbStats ? `${pct(dbStats.workflows.completed, dbStats.workflows.total)}%` : `${workflowStats.successRate}%`}
-          sub={`${(dbStats?.workflows.completed ?? workflowStats.completed)} completed`}
-          accent={workflowStats.total === 0 ? undefined : workflowStats.successRate >= 90 ? 'success' : workflowStats.successRate >= 70 ? 'warning' : 'danger'}
+          value={`${wfSuccessRate}%`}
+          sub={`${wfCompleted} completed`}
+          accent={wfTotal === 0 ? undefined : wfSuccessRate >= 90 ? 'success' : wfSuccessRate >= 70 ? 'warning' : 'danger'}
         />
       </div>
 
@@ -584,12 +402,12 @@ export function AnalyticsView() {
 
       {/* ── Status Distribution + Workflow Status + Duration ─────── */}
       <div className="charts-3col">
-        <ChartCard title="Job Status" subtitle={`${stats.total} jobs in range`}>
-          {stats.statusCounts.length > 0 ? (
+        <ChartCard title="Job Status" subtitle={`${jobTotal.toLocaleString()} jobs in range`}>
+          {jobStatusCounts.length > 0 ? (
             <ResponsiveContainer width="100%" height={230}>
               <PieChart>
                 <Pie
-                  data={stats.statusCounts}
+                  data={jobStatusCounts}
                   cx="50%"
                   cy="48%"
                   innerRadius={58}
@@ -610,12 +428,12 @@ export function AnalyticsView() {
           )}
         </ChartCard>
 
-        <ChartCard title="Workflow Status" subtitle={`${workflowStats.total} workflows in range`}>
-          {workflowStats.statusCounts.length > 0 ? (
+        <ChartCard title="Workflow Status" subtitle={`${wfTotal.toLocaleString()} workflows in range`}>
+          {wfStatusCounts.length > 0 ? (
             <ResponsiveContainer width="100%" height={230}>
               <PieChart>
                 <Pie
-                  data={workflowStats.statusCounts}
+                  data={wfStatusCounts}
                   cx="50%"
                   cy="48%"
                   innerRadius={58}
@@ -714,9 +532,9 @@ export function AnalyticsView() {
             <Bar dataKey="count" name="Jobs" radius={[2, 2, 0, 0]} maxBarSize={18} />
           </BarChart>
         </ResponsiveContainer>
-        {stats.peak.count > 0 && (
+        {peak.count > 0 && (
           <div className="chart-peak-note">
-            Peak at {String(stats.peak.hour).padStart(2, '0')}:00 — {stats.peak.count} jobs
+            Peak at {String(peak.hour).padStart(2, '0')}:00 — {peak.count} jobs
           </div>
         )}
       </ChartCard>
@@ -727,14 +545,14 @@ export function AnalyticsView() {
       </div>
       <div className="adv-stats-grid">
         {[
-          { label: 'P50 Duration',   value: formatDuration(stats.p50),  sub: 'median latency' },
-          { label: 'P95 Duration',   value: formatDuration(stats.p95),  sub: '95th percentile' },
-          { label: 'P99 Duration',   value: formatDuration(stats.p99),  sub: '99th percentile' },
-          { label: 'Throughput',     value: `${stats.throughput}`,      sub: 'jobs / hour avg' },
-          { label: 'Error Rate',     value: `${stats.errorRate}%`,      sub: `${stats.failed} failures`, danger: stats.errorRate > 10 },
-          { label: 'Retry Rate',     value: `${stats.retryRate}%`,      sub: 'jobs retried ≥1×' },
-          { label: 'Peak Hour',      value: stats.peak.count > 0 ? `${String(stats.peak.hour).padStart(2, '0')}:00` : '—', sub: stats.peak.count > 0 ? `${stats.peak.count} jobs` : 'no activity' },
-          { label: 'Unique Types',   value: stats.uniqueTypes,          sub: 'job types seen' },
+          { label: 'P50 Duration',   value: formatDuration(perf.p50),          sub: 'median latency' },
+          { label: 'P95 Duration',   value: formatDuration(perf.p95),          sub: '95th percentile' },
+          { label: 'P99 Duration',   value: formatDuration(perf.p99),          sub: '99th percentile' },
+          { label: 'Throughput',     value: `${throughput}`,                    sub: 'jobs / hour avg' },
+          { label: 'Error Rate',     value: `${errorRate}%`,                   sub: `${jobFailed.toLocaleString()} failures`, danger: errorRate > 10 },
+          { label: 'Retry Rate',     value: `${chartData?.retryRate ?? 0}%`,   sub: 'jobs retried ≥1×' },
+          { label: 'Peak Hour',      value: peak.count > 0 ? `${String(peak.hour).padStart(2, '0')}:00` : '—', sub: peak.count > 0 ? `${peak.count} jobs` : 'no activity' },
+          { label: 'Unique Types',   value: chartData?.uniqueTypes ?? 0,       sub: 'job types seen' },
         ].map((s, i) => (
           <div key={i} className="adv-stat-item">
             <div className="adv-stat-label">{s.label}</div>
@@ -789,42 +607,6 @@ export function AnalyticsView() {
         </ChartCard>
       </div>
 
-      {/* ── Workers ────────────────────────────────────────────── */}
-      {workers.length > 0 && (
-        <div className="workers-analytics-section">
-          <div className="analytics-section-header">
-            <div className="analytics-section-title">Workers — {workers.length} registered</div>
-            <div className="adv-stat-sub">
-              <span style={{ color: '#4ade80' }}>●</span> {stats.aliveWorkers} alive
-              &nbsp;&nbsp;
-              <span style={{ color: '#475569' }}>●</span> {workers.length - stats.aliveWorkers} offline
-            </div>
-          </div>
-          <div className="workers-analytics-grid">
-            {workers.map(w => (
-              <div
-                key={w.id}
-                className={`worker-analytics-card${w.isAlive ? ' worker-analytics-card--alive' : ''}`}
-              >
-                <div className="worker-analytics-header">
-                  <div className="worker-analytics-id" title={w.id}>{w.id}</div>
-                  <div className={`alive-dot ${w.isAlive ? 'alive' : 'dead'}`}>
-                    {w.isAlive ? 'alive' : 'offline'}
-                  </div>
-                </div>
-                <div className="worker-analytics-types">
-                  {w.jobTypes.map(t => (
-                    <span key={t} className="worker-type-tag" title={t}>{truncate(t, 16)}</span>
-                  ))}
-                </div>
-                <div className="worker-analytics-heartbeat">
-                  {formatDistanceToNow(new Date(w.lastHeartbeat), { addSuffix: true })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
