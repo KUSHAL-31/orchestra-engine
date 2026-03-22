@@ -4,7 +4,7 @@ import { useWorkflows } from '../hooks/useWorkflows';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function WorkflowsView() {
-  const { workflows, loading } = useWorkflows();
+  const { workflows, loading, total, page, setPage, pageSize } = useWorkflows();
 
   if (loading) {
     return (
@@ -19,7 +19,7 @@ export function WorkflowsView() {
     <div className="view">
       <div className="page-header">
         <h1 className="page-title">Workflows</h1>
-        {workflows.length > 0 && <span className="page-count">{workflows.length}</span>}
+        {total > 0 && <span className="page-count">{total.toLocaleString()} total</span>}
       </div>
       <div className="table-card">
         <table className="data-table">
@@ -63,6 +63,29 @@ export function WorkflowsView() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Pagination ── */}
+      {total > pageSize && (
+        <div className="pagination">
+          <button
+            className="btn btn-sm"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+          >
+            ← Prev
+          </button>
+          <span className="pagination-info">
+            Page {page + 1} of {Math.ceil(total / pageSize)} &nbsp;·&nbsp; {total.toLocaleString()} workflows
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={() => setPage(p => p + 1)}
+            disabled={(page + 1) * pageSize >= total}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

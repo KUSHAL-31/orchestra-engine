@@ -18,9 +18,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  getJobs: () => request<any[]>('GET', '/jobs'),
+  getJobs: (limit = 50, offset = 0) =>
+    request<{ data: any[]; total: number }>('GET', `/jobs?limit=${limit}&offset=${offset}`),
   getJob: (id: string) => request<any>('GET', `/jobs/${id}`),
-  getWorkflows: () => request<any[]>('GET', '/workflows'),
+  getWorkflows: (limit = 50, offset = 0) =>
+    request<{ data: any[]; total: number }>('GET', `/workflows?limit=${limit}&offset=${offset}`),
   getWorkflow: (id: string) => request<any>('GET', `/workflows/${id}`),
   resumeWorkflow: (id: string) => request<any>('POST', `/workflows/${id}/resume`),
   getDLQ: () => request<any[]>('GET', '/dlq'),

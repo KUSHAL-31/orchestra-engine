@@ -316,6 +316,8 @@ export function AnalyticsView() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [dlq, setDlq] = useState<DLQEntry[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [totalJobsInDb, setTotalJobsInDb] = useState(0);
+  const [totalWorkflowsInDb, setTotalWorkflowsInDb] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -325,16 +327,18 @@ export function AnalyticsView() {
     const load = async () => {
       try {
         const [j, w, d, wf] = await Promise.all([
-          api.getJobs(),
+          api.getJobs(2000, 0),
           api.getWorkers(),
           api.getDLQ(),
-          api.getWorkflows(),
+          api.getWorkflows(2000, 0),
         ]);
         if (!cancelled) {
-          setJobs((j as Job[]) || []);
+          setJobs((j.data as Job[]) || []);
+          setTotalJobsInDb(j.total ?? 0);
           setWorkers((w as Worker[]) || []);
           setDlq((d as DLQEntry[]) || []);
-          setWorkflows((wf as Workflow[]) || []);
+          setWorkflows((wf.data as Workflow[]) || []);
+          setTotalWorkflowsInDb(wf.total ?? 0);
           setLastUpdated(new Date());
         }
       } catch (e) {
@@ -471,7 +475,7 @@ export function AnalyticsView() {
         <div>
           <h1 className="page-title">Analytics</h1>
           <div className="analytics-header-sub">
-            {stats.total} jobs · refreshed at {format(lastUpdated, 'HH:mm:ss')}
+            {stats.total} jobs in window · refreshed at {format(lastUpdated, 'HH:mm:ss')}
           </div>
         </div>
         <div className="time-range-pills">
@@ -494,7 +498,7 @@ export function AnalyticsView() {
       <div className="kpi-grid">
         <KpiCard
           label="Total Jobs"
-          value={stats.total.toLocaleString()}
+          value={totalJobsInDb.toLocaleString()}
           sub={`${stats.throughput} jobs/hr`}
           accent="primary"
         />
@@ -529,7 +533,7 @@ export function AnalyticsView() {
         />
         <KpiCard
           label="Total Workflows"
-          value={workflowStats.total.toLocaleString()}
+          value={totalWorkflowsInDb.toLocaleString()}
           sub={`${workflowStats.running} running`}
           accent="purple"
         />

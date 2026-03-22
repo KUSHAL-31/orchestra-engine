@@ -7,19 +7,22 @@ import type { SubmitJobRequest, JobSubmittedEvent } from '@orchestra-engine/type
 
 export async function jobRoutes(server: FastifyInstance) {
 
-  // GET /jobs — List all jobs (most recent first)
-  server.get('/jobs', async (_req, reply) => {
-    const jobs = await prisma.job.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+  // GET /jobs — List jobs with pagination (?limit=50&offset=0)
+  server.get<{ Querystring: { limit?: string; offset?: string } }>('/jobs', async (request, reply) => {
+    const limit  = Math.min(Math.max(parseInt(request.query.limit  ?? '50', 10), 1), 2000);
+    const offset = Math.max(parseInt(request.query.offset ?? '0', 10), 0);
+
+    const [jobs, total] = await Promise.all([
+      prisma.job.findMany({ orderBy: { createdAt: 'desc' }, take: limit, skip: offset }),
+      prisma.job.count(),
+    ]);
 
     const progressValues = await Promise.all(
       jobs.map((job: Job) => redis.get(RedisKeys.jobProgress(job.id)))
     );
 
-    return reply.send(
-      jobs.map((job: Job, i: number) => ({
+    return reply.send({
+      data: jobs.map((job: Job, i: number) => ({
         id: job.id,
         type: job.type,
         status: job.status.toLowerCase(),
@@ -31,8 +34,9 @@ export async function jobRoutes(server: FastifyInstance) {
         createdAt: job.createdAt.toISOString(),
         startedAt: job.startedAt?.toISOString() ?? null,
         completedAt: job.completedAt?.toISOString() ?? null,
-      }))
-    );
+      })),
+      total,
+    });
   });
 
   // POST /jobs — Submit a new job

@@ -25,7 +25,7 @@ function getPresetCutoff(value: string): Date | null {
 }
 
 export function JobsView() {
-  const { jobs, loading } = useJobs();
+  const { jobs, loading, total, page, setPage, pageSize } = useJobs();
 
   const [idFilter, setIdFilter]           = useState('');
   const [statusFilter, setStatusFilter]   = useState<string[]>([]);
@@ -84,9 +84,9 @@ export function JobsView() {
     <div className="view">
       <div className="page-header">
         <h1 className="page-title">Jobs</h1>
-        {jobs.length > 0 && (
+        {total > 0 && (
           <span className="page-count">
-            {isFiltered ? `${filtered.length} / ${jobs.length}` : jobs.length}
+            {isFiltered ? `${filtered.length} / ${jobs.length}` : `${total.toLocaleString()} total`}
           </span>
         )}
       </div>
@@ -210,6 +210,29 @@ export function JobsView() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Pagination ── */}
+      {total > pageSize && (
+        <div className="pagination">
+          <button
+            className="btn btn-sm"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+          >
+            ← Prev
+          </button>
+          <span className="pagination-info">
+            Page {page + 1} of {Math.ceil(total / pageSize)} &nbsp;·&nbsp; {total.toLocaleString()} jobs
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={() => setPage(p => p + 1)}
+            disabled={(page + 1) * pageSize >= total}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
