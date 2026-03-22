@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import {
-  format, subHours, subDays, startOfHour, startOfDay, formatDistanceToNow,
+  format, subHours, subDays, formatDistanceToNow,
 } from 'date-fns';
 import { api } from '../api/client';
 import type { Job, Worker, DLQEntry, Workflow } from '../api/types';
+import { useJobStore } from '../store/jobs';
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type TimeRange = '1H' | '6H' | '24H' | '7D' | '30D';
@@ -22,7 +23,7 @@ interface BucketPoint {
 interface StatusCount {
   name: string;
   value: number;
-  color: string;
+  fill: string;
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
@@ -168,8 +169,6 @@ function computePeakHour(jobs: Job[]): { hour: number; count: number } {
 }
 
 /* ─── Live Feed Ticker ───────────────────────────────────────── */
-const API_KEY = import.meta.env.VITE_API_KEY ?? 'orchestra-dev-api-key-12345';
-
 const FEED_STATUS_COLORS: Record<string, string> = {
   completed: '#4ade80',
   failed:    '#f87171',
@@ -188,36 +187,34 @@ interface FeedEvent {
 
 function LiveFeedTicker() {
   const [events, setEvents] = useState<FeedEvent[]>([]);
+  const storeJobs = useJobStore(s => s.jobs);
+  const prevStatusRef = React.useRef<Map<string, string>>(new Map());
+  const mountedRef = React.useRef(false);
   const trackRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const es = new EventSource(`/api/events?key=${encodeURIComponent(API_KEY)}`);
+    if (!mountedRef.current) {
+      // Snapshot initial state — don't fire events for already-existing jobs
+      storeJobs.forEach((job, id) => prevStatusRef.current.set(id, job.status));
+      mountedRef.current = true;
+      return;
+    }
 
-    es.addEventListener('job.events', (e) => {
-      try {
-        const data = JSON.parse((e as MessageEvent).data);
-        if (data.jobId && data.status) {
-          setEvents(prev => [
-            {
-              id: `${data.jobId}-${Date.now()}`,
-              jobType: (data.type as string) || (data.jobType as string) || 'job',
-              status: data.status as string,
-              ts: new Date(),
-            },
-            ...prev,
-          ].slice(0, 40));
-        }
-      } catch { /* ignore */ }
+    storeJobs.forEach((job, id) => {
+      const prev = prevStatusRef.current.get(id);
+      // Only fire when an already-known job changes status (SSE-driven update)
+      if (prev !== undefined && prev !== job.status) {
+        setEvents(evs => [{
+          id: `${id}-${Date.now()}`,
+          jobType: job.type || 'job',
+          status: job.status,
+          ts: new Date(),
+        }, ...evs].slice(0, 40));
+        if (trackRef.current) trackRef.current.scrollLeft = 0;
+      }
+      prevStatusRef.current.set(id, job.status);
     });
-
-    es.onerror = () => {};
-    return () => es.close();
-  }, []);
-
-  // Scroll to start when new events arrive
-  useEffect(() => {
-    if (trackRef.current) trackRef.current.scrollLeft = 0;
-  }, [events.length]);
+  }, [storeJobs]);
 
   return (
     <div className={`live-feed${events.length === 0 ? ' live-feed--empty' : ''}`}>
@@ -231,15 +228,10 @@ function LiveFeedTicker() {
         <div className="live-feed-track" ref={trackRef}>
           {events.map(ev => (
             <div key={ev.id} className="live-feed-event">
-              <span
-                className="live-feed-dot"
-                style={{ background: FEED_STATUS_COLORS[ev.status] ?? '#64748b' }}
-              />
+              <span className="live-feed-dot" style={{ background: FEED_STATUS_COLORS[ev.status] ?? '#64748b' }} />
               <span className="live-feed-type">{ev.jobType}</span>
               <span className="live-feed-status">{ev.status}</span>
-              <span className="live-feed-time">
-                {formatDistanceToNow(ev.ts, { addSuffix: true })}
-              </span>
+              <span className="live-feed-time">{formatDistanceToNow(ev.ts, { addSuffix: true })}</span>
             </div>
           ))}
         </div>
@@ -403,12 +395,12 @@ export function AnalyticsView() {
     const uniqueTypes = new Set(filteredJobs.map(j => j.type)).size;
 
     const statusCounts: StatusCount[] = [
-      { name: 'Completed', value: completed, color: '#4ade80' },
-      { name: 'Failed',    value: failed,    color: '#f87171' },
-      { name: 'Running',   value: running,   color: '#60a5fa' },
-      { name: 'Pending',   value: pending,   color: '#94a3b8' },
-      { name: 'Retrying',  value: retrying,  color: '#fbbf24' },
-      { name: 'Skipped',   value: skipped,   color: '#64748b' },
+      { name: 'Completed', value: completed, fill: '#4ade80' },
+      { name: 'Failed',    value: failed,    fill: '#f87171' },
+      { name: 'Running',   value: running,   fill: '#60a5fa' },
+      { name: 'Pending',   value: pending,   fill: '#94a3b8' },
+      { name: 'Retrying',  value: retrying,  fill: '#fbbf24' },
+      { name: 'Skipped',   value: skipped,   fill: '#64748b' },
     ].filter(s => s.value > 0);
 
     return {
@@ -430,10 +422,10 @@ export function AnalyticsView() {
     const pending   = filtered.filter(w => w.status === 'pending').length;
     const successRate = pct(completed, total);
     const statusCounts: StatusCount[] = [
-      { name: 'Completed', value: completed, color: '#4ade80' },
-      { name: 'Failed',    value: failed,    color: '#f87171' },
-      { name: 'Running',   value: running,   color: '#60a5fa' },
-      { name: 'Pending',   value: pending,   color: '#94a3b8' },
+      { name: 'Completed', value: completed, fill: '#4ade80' },
+      { name: 'Failed',    value: failed,    fill: '#f87171' },
+      { name: 'Running',   value: running,   fill: '#60a5fa' },
+      { name: 'Pending',   value: pending,   fill: '#94a3b8' },
     ].filter(s => s.value > 0);
     return { total, completed, failed, running, pending, successRate, statusCounts };
   }, [workflows, timeRange]);
@@ -444,7 +436,12 @@ export function AnalyticsView() {
   const retryData        = useMemo(() => computeRetryDistribution(filteredJobs), [filteredJobs]);
   const topTypes         = useMemo(() => computeTopJobTypes(filteredJobs), [filteredJobs]);
   const topFailingTypes  = useMemo(() => computeTopFailingTypes(filteredJobs).map(d => ({ ...d, type: truncate(d.type, 13) })), [filteredJobs]);
-  const hourlyActivity   = useMemo(() => computeHourlyActivity(filteredJobs), [filteredJobs]);
+  const hourlyActivity   = useMemo(() =>
+    computeHourlyActivity(filteredJobs).map((d, i) => ({
+      ...d,
+      fill: i === computePeakHour(filteredJobs).hour && d.count > 0 ? '#f59e0b' : '#1e3a5f',
+    })),
+  [filteredJobs]);
   const recentFailures   = useMemo(() =>
     filteredJobs
       .filter(j => j.status === 'failed' || j.status === 'dead')
@@ -568,7 +565,7 @@ export function AnalyticsView() {
             <CartesianGrid strokeDasharray="3 3" stroke="#1e2d47" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '0.72rem', color: '#64748b', paddingTop: '0.5rem' }} />
             <Area type="monotone" dataKey="created"   name="Created"   stroke="#3b82f6" strokeWidth={1.5} fill="url(#gCreated)"   dot={false} activeDot={{ r: 3 }} />
             <Area type="monotone" dataKey="completed" name="Completed" stroke="#22c55e" strokeWidth={1.5} fill="url(#gCompleted)" dot={false} activeDot={{ r: 3 }} />
@@ -591,12 +588,8 @@ export function AnalyticsView() {
                   outerRadius={82}
                   paddingAngle={3}
                   dataKey="value"
-                >
-                  {stats.statusCounts.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<ChartTooltip />} />
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Legend
                   iconType="circle"
                   iconSize={7}
@@ -621,12 +614,8 @@ export function AnalyticsView() {
                   outerRadius={82}
                   paddingAngle={3}
                   dataKey="value"
-                >
-                  {workflowStats.statusCounts.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<ChartTooltip />} />
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '0.72rem', color: '#64748b' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -655,7 +644,7 @@ export function AnalyticsView() {
                   axisLine={false}
                   width={88}
                 />
-                <Tooltip content={durationTooltip} />
+                <Tooltip content={durationTooltip} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Bar dataKey="avgMs" name="Avg Duration" fill="#3b82f6" radius={[0, 3, 3, 0]} maxBarSize={16} />
               </BarChart>
             </ResponsiveContainer>
@@ -674,7 +663,7 @@ export function AnalyticsView() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2d47" horizontal={false} />
                 <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="type" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} width={88} />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Bar dataKey="failures" name="Failures" fill="#ef4444" radius={[0, 3, 3, 0]} maxBarSize={16} />
               </BarChart>
             </ResponsiveContainer>
@@ -690,7 +679,7 @@ export function AnalyticsView() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2d47" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 <Bar dataKey="count" name="Jobs" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
@@ -713,15 +702,8 @@ export function AnalyticsView() {
               interval={2}
             />
             <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} />
-            <Bar dataKey="count" name="Jobs" radius={[2, 2, 0, 0]} maxBarSize={18}>
-              {hourlyActivity.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={i === stats.peak.hour && stats.peak.count > 0 ? '#f59e0b' : '#1e3a5f'}
-                />
-              ))}
-            </Bar>
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Bar dataKey="count" name="Jobs" radius={[2, 2, 0, 0]} maxBarSize={18} />
           </BarChart>
         </ResponsiveContainer>
         {stats.peak.count > 0 && (
