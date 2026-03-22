@@ -7,7 +7,7 @@ import {
   format, subHours, subDays, startOfHour, startOfDay, formatDistanceToNow,
 } from 'date-fns';
 import { api } from '../api/client';
-import type { Job, Worker, DLQEntry } from '../api/types';
+import type { Job, Worker, DLQEntry, Workflow } from '../api/types';
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type TimeRange = '1H' | '6H' | '24H' | '7D' | '30D';
@@ -167,6 +167,87 @@ function computePeakHour(jobs: Job[]): { hour: number; count: number } {
   return { hour: counts.indexOf(max), count: max };
 }
 
+/* ─── Live Feed Ticker ───────────────────────────────────────── */
+const API_KEY = import.meta.env.VITE_API_KEY ?? 'orchestra-dev-api-key-12345';
+
+const FEED_STATUS_COLORS: Record<string, string> = {
+  completed: '#4ade80',
+  failed:    '#f87171',
+  running:   '#60a5fa',
+  retrying:  '#fbbf24',
+  dead:      '#64748b',
+  pending:   '#94a3b8',
+};
+
+interface FeedEvent {
+  id: string;
+  jobType: string;
+  status: string;
+  ts: Date;
+}
+
+function LiveFeedTicker() {
+  const [events, setEvents] = useState<FeedEvent[]>([]);
+  const trackRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const es = new EventSource(`/api/events?key=${encodeURIComponent(API_KEY)}`);
+
+    es.addEventListener('job.events', (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data);
+        if (data.jobId && data.status) {
+          setEvents(prev => [
+            {
+              id: `${data.jobId}-${Date.now()}`,
+              jobType: (data.type as string) || (data.jobType as string) || 'job',
+              status: data.status as string,
+              ts: new Date(),
+            },
+            ...prev,
+          ].slice(0, 40));
+        }
+      } catch { /* ignore */ }
+    });
+
+    es.onerror = () => {};
+    return () => es.close();
+  }, []);
+
+  // Scroll to start when new events arrive
+  useEffect(() => {
+    if (trackRef.current) trackRef.current.scrollLeft = 0;
+  }, [events.length]);
+
+  return (
+    <div className={`live-feed${events.length === 0 ? ' live-feed--empty' : ''}`}>
+      <div className="live-feed-badge">
+        <span className="live-feed-pulse" />
+        LIVE
+      </div>
+      {events.length === 0 ? (
+        <span className="live-feed-idle">Listening for job events…</span>
+      ) : (
+        <div className="live-feed-track" ref={trackRef}>
+          {events.map(ev => (
+            <div key={ev.id} className="live-feed-event">
+              <span
+                className="live-feed-dot"
+                style={{ background: FEED_STATUS_COLORS[ev.status] ?? '#64748b' }}
+              />
+              <span className="live-feed-type">{ev.jobType}</span>
+              <span className="live-feed-status">{ev.status}</span>
+              <span className="live-feed-time">
+                {formatDistanceToNow(ev.ts, { addSuffix: true })}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Custom Tooltip ─────────────────────────────────────────── */
 function ChartTooltip({ active, payload, label, valueFormatter }: {
   active?: boolean;
@@ -242,6 +323,7 @@ export function AnalyticsView() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [dlq, setDlq] = useState<DLQEntry[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -250,15 +332,17 @@ export function AnalyticsView() {
 
     const load = async () => {
       try {
-        const [j, w, d] = await Promise.all([
+        const [j, w, d, wf] = await Promise.all([
           api.getJobs(),
           api.getWorkers(),
           api.getDLQ(),
+          api.getWorkflows(),
         ]);
         if (!cancelled) {
           setJobs((j as Job[]) || []);
           setWorkers((w as Worker[]) || []);
           setDlq((d as DLQEntry[]) || []);
+          setWorkflows((wf as Workflow[]) || []);
           setLastUpdated(new Date());
         }
       } catch (e) {
@@ -335,6 +419,25 @@ export function AnalyticsView() {
     };
   }, [filteredJobs, workers, timeRange]);
 
+  /* ─── Workflow stats ─────────────────────────────────────────── */
+  const workflowStats = useMemo(() => {
+    const start = getStartDate(timeRange);
+    const filtered = workflows.filter(w => new Date(w.createdAt) >= start);
+    const total     = filtered.length;
+    const completed = filtered.filter(w => w.status === 'completed').length;
+    const failed    = filtered.filter(w => w.status === 'failed').length;
+    const running   = filtered.filter(w => w.status === 'running').length;
+    const pending   = filtered.filter(w => w.status === 'pending').length;
+    const successRate = pct(completed, total);
+    const statusCounts: StatusCount[] = [
+      { name: 'Completed', value: completed, color: '#4ade80' },
+      { name: 'Failed',    value: failed,    color: '#f87171' },
+      { name: 'Running',   value: running,   color: '#60a5fa' },
+      { name: 'Pending',   value: pending,   color: '#94a3b8' },
+    ].filter(s => s.value > 0);
+    return { total, completed, failed, running, pending, successRate, statusCounts };
+  }, [workflows, timeRange]);
+
   /* ─── Chart data ─────────────────────────────────────────────── */
   const timeSeriesData   = useMemo(() => bucketJobs(filteredJobs, timeRange), [filteredJobs, timeRange]);
   const durationData     = useMemo(() => computeDurationByType(filteredJobs).map(d => ({ ...d, type: truncate(d.type, 13) })), [filteredJobs]);
@@ -387,6 +490,9 @@ export function AnalyticsView() {
         </div>
       </div>
 
+      {/* ── Live Feed ──────────────────────────────────────────── */}
+      <LiveFeedTicker />
+
       {/* ── KPI Cards ──────────────────────────────────────────── */}
       <div className="kpi-grid">
         <KpiCard
@@ -424,6 +530,18 @@ export function AnalyticsView() {
           sub={dlq.length > 0 ? 'needs attention' : 'queue clear'}
           accent={dlq.length > 0 ? 'danger' : undefined}
         />
+        <KpiCard
+          label="Total Workflows"
+          value={workflowStats.total.toLocaleString()}
+          sub={`${workflowStats.running} running`}
+          accent="purple"
+        />
+        <KpiCard
+          label="Workflow Success"
+          value={`${workflowStats.successRate}%`}
+          sub={`${workflowStats.completed} completed`}
+          accent={workflowStats.total === 0 ? undefined : workflowStats.successRate >= 90 ? 'success' : workflowStats.successRate >= 70 ? 'warning' : 'danger'}
+        />
       </div>
 
       {/* ── Job Activity Timeline ──────────────────────────────── */}
@@ -459,9 +577,9 @@ export function AnalyticsView() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* ── Status Distribution + Duration by Type ────────────── */}
-      <div className="charts-2col">
-        <ChartCard title="Status Distribution" subtitle={`${stats.total} jobs in range`}>
+      {/* ── Status Distribution + Workflow Status + Duration ─────── */}
+      <div className="charts-3col">
+        <ChartCard title="Job Status" subtitle={`${stats.total} jobs in range`}>
           {stats.statusCounts.length > 0 ? (
             <ResponsiveContainer width="100%" height={230}>
               <PieChart>
@@ -488,6 +606,32 @@ export function AnalyticsView() {
             </ResponsiveContainer>
           ) : (
             <ChartEmpty icon="◎" text="No jobs in selected range" />
+          )}
+        </ChartCard>
+
+        <ChartCard title="Workflow Status" subtitle={`${workflowStats.total} workflows in range`}>
+          {workflowStats.statusCounts.length > 0 ? (
+            <ResponsiveContainer width="100%" height={230}>
+              <PieChart>
+                <Pie
+                  data={workflowStats.statusCounts}
+                  cx="50%"
+                  cy="48%"
+                  innerRadius={58}
+                  outerRadius={82}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {workflowStats.statusCounts.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+                <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '0.72rem', color: '#64748b' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmpty icon="⬡" text="No workflows in selected range" />
           )}
         </ChartCard>
 
