@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: '/jobs',      label: 'Jobs',             icon: '◈' },
-  { to: '/workflows', label: 'Workflows',         icon: '⬡' },
-  { to: '/schedules', label: 'Schedules',         icon: '◷' },
-  { to: '/dlq',       label: 'Dead Letter Queue', icon: '⚠' },
-  { to: '/workers',   label: 'Workers',           icon: '⚙' },
+  { to: '/jobs',       label: 'Jobs',             icon: '◈' },
+  { to: '/workflows',  label: 'Workflows',         icon: '⬡' },
+  { to: '/schedules',  label: 'Schedules',         icon: '◷' },
+  { to: '/dlq',        label: 'Dead Letter Queue', icon: '⚠' },
+  { to: '/workers',    label: 'Workers',           icon: '⚙' },
+  { to: '/analytics',  label: 'Analytics',         icon: '⊞' },
 ];
 
 export function Sidebar() {
