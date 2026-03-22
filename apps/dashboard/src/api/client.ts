@@ -33,4 +33,12 @@ export const api = {
   pauseSchedule: (id: string, active: boolean) =>
     request<any>('PATCH', `/schedules/${id}`, { active }),
   getWorkers: () => request<any[]>('GET', '/workers'),
+  getAnalyticsStats: (from: string, to?: string) => {
+    const params = new URLSearchParams({ from });
+    if (to) params.set('to', to);
+    return request<{
+      jobs:      { total: number; completed: number; failed: number; running: number; pending: number; retrying: number };
+      workflows: { total: number; completed: number; failed: number; running: number; pending: number };
+    }>('GET', `/analytics/stats?${params}`);
+  },
 };

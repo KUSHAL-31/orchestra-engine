@@ -7,6 +7,7 @@ import { dlqRoutes } from './routes/dlq';
 import { scheduleRoutes } from './routes/schedules';
 import { workerRoutes } from './routes/workers';
 import { eventsRoutes } from './routes/events';
+import { analyticsRoutes } from './routes/analytics';
 import { authHook } from './middleware/auth';
 
 export async function buildServer(): Promise<FastifyInstance> {
@@ -25,6 +26,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(scheduleRoutes);        // /schedules
   await server.register(workerRoutes);          // /workers
   await server.register(eventsRoutes);          // /events
+  await server.register(analyticsRoutes);       // /analytics
 
   return server;
 }
