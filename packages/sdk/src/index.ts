@@ -1,5 +1,6 @@
 export { JobEngine } from './job-engine';
 export { Worker } from './worker';
+export { WorkflowBuilder } from './workflow-builder';
 export type {
   JobEngineOptions,
   SubmitJobOptions,

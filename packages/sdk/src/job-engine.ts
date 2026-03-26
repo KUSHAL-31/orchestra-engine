@@ -7,6 +7,7 @@ import type {
   CreateScheduleOptions,
   ScheduleStatus,
 } from './types';
+import { WorkflowBuilder } from './workflow-builder';
 
 export class JobEngine {
   private readonly baseUrl: string;
@@ -58,6 +59,11 @@ export class JobEngine {
   /** Submit a workflow definition. Returns the workflowId. */
   async submitWorkflow(options: SubmitWorkflowOptions): Promise<{ workflowId: string }> {
     return this.request<{ workflowId: string }>('POST', '/workflows', options);
+  }
+
+  /** Build and submit a workflow using a fluent chain API. */
+  workflow(name: string): WorkflowBuilder {
+    return new WorkflowBuilder(name, (options) => this.submitWorkflow(options));
   }
 
   /** Get workflow status including all step statuses. */

@@ -176,44 +176,21 @@ Status lifecycle:
 
 A workflow is a directed acyclic graph of jobs. Steps that declare `dependsOn` run after their dependencies complete. Steps sharing a `parallelGroup` run concurrently once their shared dependencies are met.
 
+Use the fluent chain API via `engine.workflow(name)`:
+
 ```typescript
-const { workflowId } = await engine.submitWorkflow({
-  name: 'order-processing',
-  steps: [
-    {
-      name:    'validate-order',
-      type:    'validate-order',
-      payload: { orderId: '123' },
-    },
-    {
-      name:          'reserve-inventory',
-      type:          'reserve-inventory',
-      payload:       { orderId: '123' },
-      dependsOn:     ['validate-order'],
-      parallelGroup: 'fulfillment',    // runs in parallel with charge-payment
-    },
-    {
-      name:          'charge-payment',
-      type:          'charge-payment',
-      payload:       { orderId: '123', amount: 4999 },
-      dependsOn:     ['validate-order'],
-      parallelGroup: 'fulfillment',    // runs in parallel with reserve-inventory
-    },
-    {
-      name:      'send-confirmation',
-      type:      'send-email',
-      payload:   { to: 'user@example.com', subject: 'Order confirmed' },
-      dependsOn: ['reserve-inventory', 'charge-payment'],  // waits for both
-    },
-  ],
-  onFailure: {
-    type:    'notify-ops',
-    payload: { alert: 'order-processing failed', orderId: '123' },
-  },
-});
+const { workflowId } = await engine.workflow('order-processing')
+  .step({ name: 'validate-order', type: 'validate-order', payload: { orderId: '123' } })
+  .step({ name: 'reserve-inventory', type: 'reserve-inventory', payload: { orderId: '123' }, dependsOn: ['validate-order'], parallelGroup: 'fulfillment' })
+  .step({ name: 'charge-payment', type: 'charge-payment', payload: { orderId: '123', amount: 4999 }, dependsOn: ['validate-order'], parallelGroup: 'fulfillment' })
+  .step({ name: 'send-confirmation', type: 'send-email', payload: { to: 'user@example.com', subject: 'Order confirmed' }, dependsOn: ['reserve-inventory', 'charge-payment'] })
+  .onFailure({ type: 'notify-ops', payload: { alert: 'order-processing failed', orderId: '123' } })
+  .submit();
 ```
 
 `onFailure` is optional. If provided, it is submitted as a new job automatically when the workflow enters a `failed` state.
+
+> You can also use `submitWorkflow(options)` directly if you prefer passing the full options object (e.g. when building steps dynamically in a loop).
 
 ---
 
