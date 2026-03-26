@@ -1,6 +1,6 @@
 {
   "name": "orchestra-engine",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "SDK for Node Orchestra Engine — submit jobs, run workers, and trigger workflows from any Node.js backend",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
