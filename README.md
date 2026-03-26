@@ -465,7 +465,7 @@ React SPA at `http://localhost:5173`. Connects to the SSE stream on load — all
 
 **Analytics — KPI Overview**
 
-The Analytics view opens with a live-updating header row of key metrics: total jobs processed, success rate, average duration, active workers, jobs running now, and jobs waiting in queue. Below the KPIs, a time-series chart plots completed, created, and failed jobs over the selected window. The live feed ticker at the top scrolls incoming job events in real time.
+The Analytics view opens with a live-updating header row of key metrics: total jobs processed, success rate, average duration, active workers, jobs running now, and jobs waiting in queue. Below the KPIs, a time-series chart plots completed, created, and failed jobs over the selected window.
 
 ![Analytics KPI Overview](images/Screenshot%202026-03-22%20at%2018.51.14.png)
 
