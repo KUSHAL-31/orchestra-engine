@@ -130,6 +130,10 @@ export interface WorkerOptions {
   groupId?: string;
   /** Kafka client ID (default: 'orchestra-engine-sdk-worker') */
   clientId?: string;
+  /** Orchestra Engine API base URL — required for dashboard visibility */
+  apiUrl?: string;
+  /** Orchestra Engine API key — required for dashboard visibility */
+  apiKey?: string;
 }
 
 export type JobHandlerFn = (ctx: WorkerJobContext) => Promise<unknown>;
