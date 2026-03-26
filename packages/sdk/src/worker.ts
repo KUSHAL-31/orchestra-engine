@@ -43,9 +43,25 @@ export class Worker {
   private producer: Producer | null = null;
   private redisMain: Redis | null = null;
   private redisLock: Redis | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private apiUrl: string | null = null;
+  private apiHeaders: Record<string, string> | null = null;
 
   constructor() {
     this.workerId = `sdk-worker-${os.hostname()}-${process.pid}`;
+  }
+
+  private async apiPost(path: string, body?: unknown): Promise<void> {
+    if (!this.apiUrl || !this.apiHeaders) return;
+    try {
+      await fetch(`${this.apiUrl}${path}`, {
+        method:  'POST',
+        headers: this.apiHeaders,
+        body:    body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      // Heartbeat failures are non-fatal — worker continues running
+    }
   }
 
   /**
@@ -64,6 +80,24 @@ export class Worker {
    * Call stop() for graceful shutdown.
    */
   async start(options: WorkerOptions): Promise<void> {
+    if (options.apiUrl && options.apiKey) {
+      this.apiUrl = options.apiUrl.replace(/\/$/, '');
+      this.apiHeaders = {
+        'Content-Type': 'application/json',
+        Authorization:  `Bearer ${options.apiKey}`,
+      };
+
+      // Register worker and start heartbeat
+      await this.apiPost('/workers/register', {
+        workerId: this.workerId,
+        jobTypes: Array.from(this.handlers.keys()),
+      });
+
+      this.heartbeatTimer = setInterval(() => {
+        this.apiPost(`/workers/${this.workerId}/heartbeat`);
+      }, 10_000);
+    }
+
     const redisConfig = {
       host:     options.redisHost ?? 'localhost',
       port:     options.redisPort ?? 6379,
@@ -228,6 +262,11 @@ export class Worker {
    * Call this on SIGTERM / SIGINT.
    */
   async stop(): Promise<void> {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    await this.apiPost(`/workers/${this.workerId}/deregister`);
     await this.consumer?.disconnect();
     await this.producer?.disconnect();
     await this.redisMain?.quit();

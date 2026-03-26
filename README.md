@@ -78,6 +78,8 @@ worker.start({
   redisHost:    'localhost',
   redisPort:    6379,
   groupId:      'workers',  // must match the engine's consumer group
+  apiUrl:       'http://localhost:3000',       // enables dashboard visibility
+  apiKey:       'orchestra-dev-api-key-12345', // enables dashboard visibility
 });
 ```
 
