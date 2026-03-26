@@ -33,9 +33,11 @@ export async function startWorkerConsumer(handlers: Map<string, JobHandler>) {
         return;
       }
 
-      // Step 2: Handle delayed jobs (job.retry with retryAfterMs)
+      // Step 2: Handle delayed jobs
       if ('retryAfterMs' in event && event.retryAfterMs > 0) {
         await new Promise((res) => setTimeout(res, event.retryAfterMs));
+      } else if ('delayMs' in event && event.delayMs > 0) {
+        await new Promise((res) => setTimeout(res, event.delayMs));
       }
 
       // Step 3: Acquire Redlock — RULE-6: second layer of safety
