@@ -211,32 +211,29 @@ await worker.start({
 Steps run in order. Each step starts only after all steps in `dependsOn` have completed.
 
 ```typescript
-const { workflowId } = await engine.submitWorkflow({
-  name: 'order-processing',
-  steps: [
-    {
-      name: 'validate',
-      type: 'validate-order',
-      payload: { orderId: 'ORD-100' },
-    },
-    {
-      name: 'charge',
-      type: 'charge-payment',
-      payload: { orderId: 'ORD-100', amount: 89.99 },
-      dependsOn: ['validate'],
-    },
-    {
-      name: 'confirm',
-      type: 'send-email',
-      payload: { to: 'user@example.com', subject: 'Order confirmed' },
-      dependsOn: ['charge'],
-    },
-  ],
-  onFailure: {
-    type: 'send-email',
+const { workflowId } = await engine.workflow('order-processing')
+  .step({
+    name:    'validate',
+    type:    'validate-order',
+    payload: { orderId: 'ORD-100' },
+  })
+  .step({
+    name:      'charge',
+    type:      'charge-payment',
+    payload:   { orderId: 'ORD-100', amount: 89.99 },
+    dependsOn: ['validate'],
+  })
+  .step({
+    name:      'confirm',
+    type:      'send-email',
+    payload:   { to: 'user@example.com', subject: 'Order confirmed' },
+    dependsOn: ['charge'],
+  })
+  .onFailure({
+    type:    'send-email',
     payload: { to: 'ops@company.com', subject: 'Order pipeline failed' },
-  },
-});
+  })
+  .submit();
 ```
 
 ```
@@ -250,36 +247,33 @@ validate → charge → confirm
 Steps with the same `parallelGroup` run simultaneously. A downstream step waits for all of them to complete before starting (fan-in).
 
 ```typescript
-await engine.submitWorkflow({
-  name: 'post-payment-parallel',
-  steps: [
-    {
-      name: 'charge',
-      type: 'charge-payment',
-      payload: { orderId: 'ORD-200', amount: 199.99 },
-    },
-    {
-      name: 'notify-warehouse',
-      type: 'notify-warehouse',
-      payload: { orderId: 'ORD-200' },
-      dependsOn: ['charge'],
-      parallelGroup: 'fulfillment',
-    },
-    {
-      name: 'update-inventory',
-      type: 'update-inventory',
-      payload: { orderId: 'ORD-200' },
-      dependsOn: ['charge'],
-      parallelGroup: 'fulfillment',
-    },
-    {
-      name: 'send-receipt',
-      type: 'send-email',
-      payload: { to: 'user@example.com', subject: 'Your receipt' },
-      dependsOn: ['notify-warehouse', 'update-inventory'], // fan-in: waits for both
-    },
-  ],
-});
+await engine.workflow('post-payment-parallel')
+  .step({
+    name:    'charge',
+    type:    'charge-payment',
+    payload: { orderId: 'ORD-200', amount: 199.99 },
+  })
+  .step({
+    name:          'notify-warehouse',
+    type:          'notify-warehouse',
+    payload:       { orderId: 'ORD-200' },
+    dependsOn:     ['charge'],
+    parallelGroup: 'fulfillment',
+  })
+  .step({
+    name:          'update-inventory',
+    type:          'update-inventory',
+    payload:       { orderId: 'ORD-200' },
+    dependsOn:     ['charge'],
+    parallelGroup: 'fulfillment',
+  })
+  .step({
+    name:      'send-receipt',
+    type:      'send-email',
+    payload:   { to: 'user@example.com', subject: 'Your receipt' },
+    dependsOn: ['notify-warehouse', 'update-inventory'],
+  })
+  .submit();
 ```
 
 ```
