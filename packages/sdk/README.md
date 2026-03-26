@@ -352,6 +352,9 @@ await worker.start({
   redisHost:     process.env.REDIS_HOST      ?? 'localhost',
   redisPort:     parseInt(process.env.REDIS_PORT ?? '6379'),
   redisPassword: process.env.REDIS_PASSWORD,
+  groupId:       'workers',                        // must match the engine's consumer group
+  apiUrl:        process.env.ORCHESTRA_API_URL,    // enables dashboard visibility
+  apiKey:        process.env.ORCHESTRA_API_KEY,    // enables dashboard visibility
 });
 ```
 
@@ -397,7 +400,7 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT',  shutdown);
 ```
 
-`worker.stop()` waits for any currently-running handler to complete before disconnecting.
+`worker.stop()` waits for any currently-running handler to complete before disconnecting. If `apiUrl` and `apiKey` were provided, it also deregisters the worker from the dashboard so it shows as dead immediately rather than waiting for the heartbeat to expire.
 
 ---
 
@@ -468,8 +471,10 @@ import type {
 | `redisHost` | `string` | `'localhost'` | Redis host |
 | `redisPort` | `number` | `6379` | Redis port |
 | `redisPassword` | `string` | — | Redis password (if auth is enabled) |
-| `groupId` | `string` | `'orchestra-sdk-workers'` | Kafka consumer group ID |
+| `groupId` | `string` | `'orchestra-sdk-workers'` | Kafka consumer group ID — set to `'workers'` to join the engine's default pool |
 | `clientId` | `string` | `'orchestra-engine-sdk-worker'` | Kafka client ID |
+| `apiUrl` | `string` | — | Orchestra Engine API base URL — required for worker to appear in the dashboard |
+| `apiKey` | `string` | — | Orchestra Engine API key — required for worker to appear in the dashboard |
 
 ### CreateScheduleOptions
 
