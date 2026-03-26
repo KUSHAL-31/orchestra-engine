@@ -180,11 +180,35 @@ Use the fluent chain API via `engine.workflow(name)`:
 
 ```typescript
 const { workflowId } = await engine.workflow('order-processing')
-  .step({ name: 'validate-order', type: 'validate-order', payload: { orderId: '123' } })
-  .step({ name: 'reserve-inventory', type: 'reserve-inventory', payload: { orderId: '123' }, dependsOn: ['validate-order'], parallelGroup: 'fulfillment' })
-  .step({ name: 'charge-payment', type: 'charge-payment', payload: { orderId: '123', amount: 4999 }, dependsOn: ['validate-order'], parallelGroup: 'fulfillment' })
-  .step({ name: 'send-confirmation', type: 'send-email', payload: { to: 'user@example.com', subject: 'Order confirmed' }, dependsOn: ['reserve-inventory', 'charge-payment'] })
-  .onFailure({ type: 'notify-ops', payload: { alert: 'order-processing failed', orderId: '123' } })
+  .step({
+    name:    'validate-order',
+    type:    'validate-order',
+    payload: { orderId: '123' },
+  })
+  .step({
+    name:          'reserve-inventory',
+    type:          'reserve-inventory',
+    payload:       { orderId: '123' },
+    dependsOn:     ['validate-order'],
+    parallelGroup: 'fulfillment',    // runs in parallel with charge-payment
+  })
+  .step({
+    name:          'charge-payment',
+    type:          'charge-payment',
+    payload:       { orderId: '123', amount: 4999 },
+    dependsOn:     ['validate-order'],
+    parallelGroup: 'fulfillment',    // runs in parallel with reserve-inventory
+  })
+  .step({
+    name:      'send-confirmation',
+    type:      'send-email',
+    payload:   { to: 'user@example.com', subject: 'Order confirmed' },
+    dependsOn: ['reserve-inventory', 'charge-payment'],  // waits for both
+  })
+  .onFailure({
+    type:    'notify-ops',
+    payload: { alert: 'order-processing failed', orderId: '123' },
+  })
   .submit();
 ```
 
