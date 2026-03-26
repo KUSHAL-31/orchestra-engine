@@ -25,10 +25,12 @@ Most teams end up duct-taping background jobs together with ad-hoc queues, scatt
 
 **Prerequisites:** Docker + Docker Compose
 
+### 1. Start the platform
+
 ```bash
 git clone https://github.com/KUSHAL-31/orchestra-engine.git
 cd orchestra-engine
-docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml up -d postgres redis kafka zookeeper orchestrator api scheduler dashboard
 ```
 
 | Service | URL |
@@ -44,6 +46,40 @@ curl http://localhost:3000/health
 ```
 
 > The API key is seeded from `API_KEY_SEED` in your `.env` file. The default dev value is `orchestra-dev-api-key-12345`.
+
+> **Note:** Do not include the `worker` service when running your own application. The Docker worker only exists to demo the platform with built-in handlers. In a real setup, your own application runs its own worker with your business logic — see [SDK Usage](#sdk-usage) below.
+
+### 2. Run your own worker
+
+Install the SDK in your app and register your own handlers:
+
+```bash
+npm install orchestra-engine
+```
+
+```typescript
+import { Worker } from 'orchestra-engine';
+
+const worker = new Worker();
+
+worker
+  .register('send-email', async (ctx) => {
+    const { to, subject } = ctx.data as { to: string; subject: string };
+    // your real email logic here
+    return { sent: true };
+  })
+  .register('generate-report', async (ctx) => {
+    // your real report logic here
+    return { reportUrl: '...' };
+  });
+
+worker.start({
+  kafkaBrokers: ['localhost:9092'],
+  redisHost:    'localhost',
+  redisPort:    6379,
+  groupId:      'workers',  // must match the engine's consumer group
+});
+```
 
 ---
 
